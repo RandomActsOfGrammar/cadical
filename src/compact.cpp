@@ -290,13 +290,13 @@ void Internal::compact () {
   if (!external->assumptions.empty ()) {
 
     for (const auto & elit : external->assumptions) {
-      assert (elit);
-      assert (elit != INT_MIN);
-      int eidx = abs (elit);
+      assert (e_val(elit));
+      assert (e_val(elit) != INT_MIN);
+      int eidx = abs (e_val(elit));
       assert (eidx <= external->max_var);
       int ilit = external->e2i[eidx];
       assert (ilit);            // Because we froze all!!!
-      if (elit < 0) ilit = -ilit;
+      if (e_val(elit) < 0) ilit = -ilit;
       assume (ilit);
     }
 

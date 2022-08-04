@@ -312,8 +312,8 @@ int Internal::check_clause_import(std::vector<int> cls){
     chain.clear();
     size_t i = size > 1 ? 1 : 0; //start at 1 to skip glue if there is glue
     while (need_to_add && i < size){
-        int elit = cls[i];
-        assert (elit != 0);
+        ELit elit(cls[i]);
+        assert (e_val(elit) != 0);
 
         if (external->marked (external->witness, elit)) {
             // Literal marked as witness: Cannot import
@@ -322,7 +322,7 @@ int Internal::check_clause_import(std::vector<int> cls){
 
         //The only side effects of this are to increase the mapping between internal and external.
         //Therefore it doesn't matter if we internalize something that isn't going to be imported.
-        int ilit = external->internalize(elit);
+        ILit ilit = external->internalize(elit);
 
         auto& f = flags (ilit);
         if (f.eliminated () || f.substituted ()) {
@@ -342,7 +342,7 @@ int Internal::check_clause_import(std::vector<int> cls){
             }
         } else{
             //only include non-fixed literals in the clause
-            clause.push_back(ilit);
+            clause.push_back(elit);
         }
         i++;
     }
@@ -895,7 +895,7 @@ void Internal::dump () {
 /*------------------------------------------------------------------------*/
 
 bool Internal::traverse_clauses (ClauseIterator & it) {
-  vector<int> eclause;
+  vector<ELit> eclause;
   if (unsat) return it.clause (eclause);
   for (const auto & c : clauses) {
     if (c->garbage) continue;
@@ -905,7 +905,7 @@ bool Internal::traverse_clauses (ClauseIterator & it) {
       const int tmp = fixed (ilit);
       if (tmp > 0) { satisfied = true; break; }
       if (tmp < 0) continue;
-      const int elit = externalize (ilit);
+      const ELit elit = externalize (ilit);
       eclause.push_back (elit);
     }
     if (!satisfied && !it.clause (eclause))

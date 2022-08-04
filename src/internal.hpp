@@ -61,6 +61,7 @@ extern "C" {
 #include "internal.hpp"
 #include "level.hpp"
 #include "limit.hpp"
+#include "lits.hpp"
 #include "logging.hpp"
 #include "message.hpp"
 #include "observer.hpp"
@@ -182,7 +183,7 @@ struct Internal {
   size_t target_assigned;       // maximum assigned without conflict
   size_t no_conflict_until;     // largest trail prefix without conflict
   vector<int> trail;            // currently assigned literals
-  vector<int> clause;           // simplified in parsing & learning
+  vector<ELit> clause;           // simplified in parsing & learning
   vector<int> assumptions;      // assumed literals
   vector<int> original;         // original added literals
   vector<int> levels;           // decision levels in learned clause
@@ -304,11 +305,11 @@ struct Internal {
 
   // Unsigned literals (abs) with checks.
   //
-  int vidx (int lit) const {
+  int vidx (ILit lit) const {
     int idx;
-    assert (lit);
-    assert (lit != INT_MIN);
-    idx = abs (lit);
+    assert (i_val(lit));
+    assert (i_val(lit) != INT_MIN);
+    idx = abs (i_val(lit));
     assert (idx <= max_var);
     return idx;
   }
@@ -317,7 +318,7 @@ struct Internal {
   // by literals.  The idea is to keep the elements in such an array for both
   // the positive and negated version of a literal close together.
   //
-  unsigned vlit (int lit) { return (lit < 0) + 2u * (unsigned) vidx (lit); }
+  unsigned vlit (ILit lit) { return (i_val(lit) < 0) + 2u * (unsigned) vidx (lit); }
 
   int u2i (unsigned u) {
     assert (u > 1);
@@ -329,23 +330,23 @@ struct Internal {
 
   // Helper functions to access variable and literal data.
   //
-  Var & var (int lit)        { return vtab[vidx (lit)]; }
-  Link & link (int lit)      { return links[vidx (lit)]; }
-  Flags & flags (int lit)    { return ftab[vidx (lit)]; }
-  int64_t & bumped (int lit) { return btab[vidx (lit)]; }
-  int & propfixed (int lit)  { return ptab[vlit (lit)]; }
-  double & score (int lit)   { return stab[vidx (lit)]; }
+  Var & var (ILit lit)        { return vtab[vidx (lit)]; }
+  Link & link (ILit lit)      { return links[vidx (lit)]; }
+  Flags & flags (ILit lit)    { return ftab[vidx (lit)]; }
+  int64_t & bumped (ILit lit) { return btab[vidx (lit)]; }
+  int & propfixed (ILit lit)  { return ptab[vlit (lit)]; }
+  double & score (ILit lit)   { return stab[vidx (lit)]; }
 
   const Flags &
-  flags (int lit) const       { return ftab[vidx (lit)]; }
+  flags (ILit lit) const       { return ftab[vidx (lit)]; }
 
   bool occurring () const     { return !otab.empty (); }
   bool watching () const      { return !wtab.empty (); }
 
-  Bins & bins (int lit)       { return big[vlit (lit)]; }
-  Occs & occs (int lit)       { return otab[vlit (lit)]; }
-  int64_t & noccs (int lit)   { return ntab[vlit (lit)]; }
-  Watches & watches (int lit) { return wtab[vlit (lit)]; }
+  Bins & bins (ILit lit)       { return big[vlit (lit)]; }
+  Occs & occs (ILit lit)       { return otab[vlit (lit)]; }
+  int64_t & noccs (ILit lit)   { return ntab[vlit (lit)]; }
+  Watches & watches (ILit lit) { return wtab[vlit (lit)]; }
 
   // Variable bumping through exponential VSIDS (EVSIDS) as in MiniSAT.
   //
@@ -1046,7 +1047,7 @@ struct Internal {
     int solve(bool preprocess_only = false);
 
     //
-    int lookahead();
+    ILit lookahead();
     CubesWithStatus generate_cubes(int, int);
     int most_occurring_literal();
     int lookahead_probing();
@@ -1076,11 +1077,11 @@ struct Internal {
   // substantially faster than negating the result if the argument is
   // negative.  We also avoid taking the absolute value.
   //
-  signed char val (int lit) const {
-    assert (-max_var <= lit);
-    assert (lit);
-    assert (lit <= max_var);
-    return vals[lit];
+  signed char val (ILit lit) const {
+    assert (-max_var <= i_val(lit));
+    assert (i_val(lit));
+    assert (i_val(lit) <= max_var);
+    return vals[i_val(lit)];
   }
 
   // As 'val' but restricted to the root-level value of a literal.
@@ -1100,19 +1101,19 @@ struct Internal {
 
   // Map back an internal literal to an external.
   //
-  int externalize (int lit) {
-    assert (lit != INT_MIN);
-    const int idx = abs (lit);
+  ELit externalize (ILit lit) {
+    assert (i_val(lit != INT_MIN));
+    const int idx = abs (i_val(lit));
     assert (idx);
     assert (idx <= max_var);
     int res = i2e[idx];
-    if (lit < 0) res = -res;
+    if (i_val(lit) < 0) res = -res;
     return res;
   }
 
   // Explicit freezing and melting of variables.
   //
-  void freeze (int lit) {
+  void freeze (ILit lit) {
     int idx = vidx (lit);
     unsigned & ref = frozentab[idx];
     if (ref < UINT_MAX) {
@@ -1120,7 +1121,7 @@ struct Internal {
       LOG ("variable %d frozen %u times", idx, ref);
     } else LOG ("variable %d remains frozen forever", idx);
   }
-  void melt (int lit) {
+  void melt (ILit lit) {
     int idx = vidx (lit);
     unsigned & ref = frozentab[idx];
     if (ref < UINT_MAX) {
@@ -1131,7 +1132,7 @@ struct Internal {
           lit, ref);
     } else LOG ("variable %d remains frozen forever", idx);
   }
-  bool frozen (int lit) { return frozentab[vidx (lit)] > 0; }
+  bool frozen (ILit lit) { return frozentab[vidx (lit)] > 0; }
 
   // Parsing functions in 'parse.cpp'.
   //
@@ -1275,14 +1276,14 @@ inline bool score_smaller::operator () (unsigned a, unsigned b) {
 
 // Implemented here for keeping it all inline (requires Internal::fixed).
 
-inline int External::fixed (int elit) const {
-  assert (elit);
-  assert (elit != INT_MIN);
-  int eidx = abs (elit);
+inline int External::fixed (ELit elit) const {
+  assert (e_val(elit));
+  assert (e_val(elit) != INT_MIN);
+  int eidx = abs (e_val(elit));
   if (eidx > max_var) return 0;
   int ilit = e2i [eidx];
   if (!ilit) return 0;
-  if (elit < 0) ilit = -ilit;
+  if (e_val(elit) < 0) ilit = -ilit;
   return internal->fixed (ilit);
 }
 

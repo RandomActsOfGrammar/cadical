@@ -89,7 +89,8 @@ void External::reset_limits () {
 
 /*------------------------------------------------------------------------*/
 
-int External::internalize (int elit) {
+ILit External::internalize (ELit eLit) {
+  int elit = e_val(eLit);
   int ilit;
   if (elit) {
     assert (elit != INT_MIN);
@@ -127,58 +128,58 @@ int External::internalize (int elit) {
   return ilit;
 }
 
-void External::add (int elit) {
-  assert (elit != INT_MIN);
+void External::add (ELit elit) {
+  assert (e_val(elit) != INT_MIN);
   reset_extended ();
   if (internal->opts.check &&
       (internal->opts.checkwitness || internal->opts.checkfailed))
     original.push_back (elit);
-  const int ilit = internalize (elit);
-  assert (!elit == !ilit);
-  if (elit) LOG ("adding external %d as internal %d", elit, ilit);
-  internal->add_original_lit (ilit);
+  const ILit ilit = internalize (elit);
+  assert (!e_val(elit) == !i_val(ilit));
+  if (e_val(elit)) LOG ("adding external %d as internal %d", e_val(elit), i_val(ilit));
+  internal->add_original_lit (i_val(ilit));
 }
 
-void External::assume (int elit) {
-  assert (elit);
+void External::assume (ELit elit) {
+  assert (e_val(elit));
   reset_extended ();
   assumptions.push_back (elit);
-  const int ilit = internalize (elit);
-  assert (ilit);
-  LOG ("assuming external %d as internal %d", elit, ilit);
-  internal->assume (ilit);
+  const ILit ilit = internalize (elit);
+  assert (i_val(ilit));
+  LOG ("assuming external %d as internal %d", e_val(elit), i_val(ilit));
+  internal->assume (i_val(ilit));
 }
 
-bool External::failed (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
-  int eidx = abs (elit);
+bool External::failed (ELit elit) {
+  assert (e_val(elit));
+  assert (e_val(elit) != INT_MIN);
+  int eidx = abs (e_val(elit));
   if (eidx > max_var) return 0;
   int ilit = e2i[eidx];
   if (!ilit) return 0;
-  if (elit < 0) ilit = -ilit;
+  if (e_val(elit) < 0) ilit = -ilit;
   return internal->failed (ilit);
 }
 
-void External::phase (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
-  int eidx = abs (elit);
+void External::phase (ELit elit) {
+  assert (e_val(elit));
+  assert (e_val(elit) != INT_MIN);
+  int eidx = abs (e_val(elit));
   if (eidx > max_var) return;
   int ilit = e2i[eidx];
   if (!ilit) return;
-  if (elit < 0) ilit = -ilit;
+  if (e_val(elit) < 0) ilit = -ilit;
   internal->phase (ilit);
 }
 
-void External::unphase (int elit) {
-  assert (elit);
-  assert (elit != INT_MIN);
-  int eidx = abs (elit);
+void External::unphase (ELit elit) {
+  assert (e_val(elit));
+  assert (e_val(elit) != INT_MIN);
+  int eidx = abs (e_val(elit));
   if (eidx > max_var) return;
   int ilit = e2i[eidx];
   if (!ilit) return;
-  if (elit < 0) ilit = -ilit;
+  if (e_val(elit) < 0) ilit = -ilit;
   internal->unphase (ilit);
 }
 
@@ -249,12 +250,12 @@ int External::solve (bool preprocess_only) {
 
 void External::terminate () { internal->terminate (); }
 
-int External::lookahead () {
+ELit External::lookahead () {
   reset_extended ();
   update_molten_literals ();
-  int ilit = internal->lookahead ();
-  const int elit = (ilit && ilit != INT_MIN) ? internal->externalize (ilit) : 0;
-  LOG ("lookahead internal %d external %d", ilit, elit);
+  ILit ilit = internal->lookahead ();
+  const ELit elit = (i_val(ilit) && i_val(ilit) != INT_MIN) ? internal->externalize (ilit) : 0;
+  LOG ("lookahead internal %d external %d", i_val(ilit), e_val(elit));
   return elit;
 }
 
@@ -263,9 +264,9 @@ CaDiCaL::CubesWithStatus External::generate_cubes (int depth, int min_depth = 0)
   update_molten_literals ();
   reset_limits ();
   auto cubes = internal->generate_cubes (depth, min_depth);
-  auto externalize = [this](int ilit) {
-    const int elit = ilit ? internal->externalize (ilit) : 0;
-    MSG ("lookahead internal %d external %d", ilit, elit);
+  auto externalize = [this](ILit ilit) {
+    const ELit elit = i_val(ilit) ? internal->externalize (ilit) : 0;
+    MSG ("lookahead internal %d external %d", i_val(ilit), e_val(elit));
     return elit;
   };
   auto externalize_map = [this, externalize](std::vector<int> cube) {
@@ -280,9 +281,9 @@ CaDiCaL::CubesWithStatus External::generate_cubes (int depth, int min_depth = 0)
 
 /*------------------------------------------------------------------------*/
 
-void External::freeze (int elit) {
+void External::freeze (ELit elit) {
   reset_extended ();
-  int ilit = internalize (elit);
+  ILit ilit = internalize (elit);
   unsigned eidx = vidx (elit);
   while (eidx >= frozentab.size ())
     frozentab.push_back (0);
@@ -296,9 +297,9 @@ void External::freeze (int elit) {
   internal->freeze (ilit);
 }
 
-void External::melt (int elit) {
+void External::melt (ELit elit) {
   reset_extended ();
-  int ilit = internalize (elit);
+  ILit ilit = internalize (elit);
   unsigned eidx = vidx (elit);
   assert (eidx < frozentab.size ());
   unsigned & ref = frozentab[eidx];
@@ -317,7 +318,7 @@ void External::melt (int elit) {
 
 /*------------------------------------------------------------------------*/
 
-void External::check_assignment (int (External::*a)(int) const) {
+void External::check_assignment (int (External::*a)(ELit) const) {
 
   // First check all assigned and consistent.
   //
@@ -334,13 +335,13 @@ void External::check_assignment (int (External::*a)(int) const) {
   auto start = original.begin (), i = start;
   int64_t count = 0;
   for (; i != end; i++) {
-    int lit = *i;
-    if (!lit) {
+    ELit lit = *i;
+    if (!e_val(lit)) {
       if (!satisfied) {
         fatal_message_start ();
         fputs ("unsatisfied clause:\n", stderr);
         for (auto j = start; j != i; j++)
-          fprintf (stderr, "%d ", *j);
+          fprintf (stderr, "%d ", e_val(*j));
         fputc ('0', stderr);
         fatal_message_end ();
       }
@@ -360,8 +361,8 @@ void External::check_assumptions_satisfied () {
   for (const auto & lit : assumptions) {
     // Not 'signed char' !!!!
     const int tmp = ival (lit);
-    if (tmp < 0) FATAL ("assumption %d falsified", lit);
-    if (!tmp) FATAL ("assumption %d unassigned", lit);
+    if (tmp < 0) FATAL ("assumption %d falsified", e_val(lit));
+    if (!tmp) FATAL ("assumption %d unassigned", e_val(lit));
   }
   VERBOSE (1,
     "checked that %zd assumptions are satisfied",
@@ -512,7 +513,7 @@ void External::export_learned_empty_clause () {
     LOG ("not exporting learned empty clause");
 }
 
-void External::export_learned_unit_clause (clause_id_t clause_id, int elit) {
+void External::export_learned_unit_clause (clause_id_t clause_id, ELit elit) {
   assert (learner);
   //1 + 2:  1 literals + 2 metedata ints for clause ID
   if (learner->learning (1 + 2)) {

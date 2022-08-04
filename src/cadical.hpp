@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "lits.hpp"
+
 namespace CaDiCaL {
 
 /*========================================================================*/
@@ -224,7 +226,7 @@ public:
   //   if (lit) ensure (ADDING)         // and thus VALID but not READY
   //   if (!lit) ensure (UNKNOWN)       // and thus READY
   //
-  void add (int lit);
+  void add (ELit lit);
 
   // Assume valid non zero literal for next call to 'solve'.  These
   // assumptions are reset after the call to 'solve' as well as after
@@ -871,7 +873,7 @@ class Learner {
 public:
   virtual ~Learner () { }
   virtual bool learning (int size) = 0;
-  virtual void learn (int lit) = 0;
+  virtual void learn (ELit lit) = 0;
 };
 
 class LearnSource {

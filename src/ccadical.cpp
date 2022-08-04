@@ -16,8 +16,8 @@ struct Wrapper : Learner, Terminator {
   struct {
     void * state;
     int max_length;
-    int * begin_clause, * end_clause, * capacity_clause;
-    void (*function) (void *, int *);
+    ELit * begin_clause, * end_clause, * capacity_clause;
+    void (*function) (void *, ELit *);
   } learner;
 
   bool terminate () {
@@ -32,17 +32,17 @@ struct Wrapper : Learner, Terminator {
     return size <= learner.max_length;
   }
 
-  void learn (int lit) {
+  void learn (ELit lit) {
     if (learner.end_clause == learner.capacity_clause) {
       size_t count = learner.end_clause - learner.begin_clause;
       size_t size = count ? 2*count : 1;
-      learner.begin_clause = (int*)
-        realloc (learner.begin_clause, size * sizeof (int));
+      learner.begin_clause = (ELit *)
+        realloc (learner.begin_clause, size * sizeof (ELit));
       learner.end_clause = learner.begin_clause + count;
       learner.capacity_clause = learner.begin_clause + size;
     }
     *learner.end_clause++ = lit;
-    if (lit)
+    if (e_val(lit))
       return;
     learner.function (learner.state, learner.begin_clause);
     learner.end_clause = learner.begin_clause;
@@ -148,7 +148,7 @@ void ccadical_set_terminate (CCaDiCaL * ptr,
 
 void ccadical_set_learn (CCaDiCaL * ptr,
                          void * state, int max_length,
-                         void (*learn)(void * state, int * clause)) {
+                         void (*learn)(void * state, ELit * clause)) {
   Wrapper * wrapper = (Wrapper *) ptr;
   wrapper->learner.state = state;
   wrapper->learner.max_length = max_length;

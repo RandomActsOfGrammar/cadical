@@ -7,24 +7,24 @@ void External::push_zero_on_extension_stack () {
   LOG ("pushing 0 on extension stack");
 }
 
-void External::push_clause_literal_on_extension_stack (int ilit) {
-  assert (ilit);
-  const int elit = internal->externalize (ilit);
-  assert (elit);
+void External::push_clause_literal_on_extension_stack (ILit ilit) {
+  assert (i_val(ilit));
+  const ELit elit = internal->externalize (ilit);
+  assert (e_val(elit));
   extension.push_back (elit);
   LOG ("pushing clause literal %d on extension stack (internal %d)",
-    elit, ilit);
+       e_val(elit), i_val(ilit));
 }
 
-void External::push_witness_literal_on_extension_stack (int ilit) {
-  assert (ilit);
-  const int elit = internal->externalize (ilit);
-  assert (elit);
+void External::push_witness_literal_on_extension_stack (ILit ilit) {
+  assert (i_val(ilit));
+  const ELit elit = internal->externalize (ilit);
+  assert (e_val(elit));
   extension.push_back (elit);
   LOG ("pushing witness literal %d on extension stack (internal %d)",
-    elit, ilit);
+       e_val(elit), i_val(ilit));
   if (marked (witness, elit)) return;
-  LOG ("marking witness %d", elit);
+  LOG ("marking witness %d", e_val(elit));
   mark (witness, elit);
 }
 
@@ -122,17 +122,17 @@ void External::extend () {
     bool satisfied = false;
     int lit;
     assert (i != begin);
-    while ((lit = *--i)) {
+    while ((lit = e_val(*--i))) {
       if (satisfied) continue;
       if (ival (lit) > 0) satisfied = true;
       assert (i != begin);
     }
     assert (i != begin);
     if (satisfied)
-      while (*--i)
+      while (e_val(*--i))
         assert (i != begin);
     else {
-      while ((lit = *--i)) {
+      while ((lit = e_val(*--i))) {
         const int tmp = ival (lit);             // not 'signed char'!!!
         if (tmp < 0) {
           LOG ("flipping blocking literal %d", lit);
@@ -165,9 +165,9 @@ bool External::traverse_witnesses_backward (WitnessIterator & it) {
   auto i = extension.end ();
   while (i != begin) {
     int lit;
-    while ((lit = *--i))
+    while ((lit = e_val(*--i)))
       clause.push_back (lit);
-    while ((lit = *--i))
+    while ((lit = e_val(*--i)))
       witness.push_back (lit);
     reverse (clause.begin (), clause.end ());
     reverse (witness.begin (), witness.end ());
@@ -185,14 +185,14 @@ bool External::traverse_witnesses_forward (WitnessIterator & it) {
   const auto end = extension.end ();
   auto i = extension.begin ();
   if (i != end) {
-    int lit = *i++;
+    int lit = e_val(*i++);
     do {
       assert (!lit), (void) lit;
-      while ((lit = *i++))
+      while ((lit = e_val(*i++)))
         witness.push_back (lit);
       assert (!lit);
       assert (i != end);
-      while (i != end && (lit = *i++))
+      while (i != end && (lit = e_val(*i++)))
         clause.push_back (lit);
       if (!it.witness (clause, witness))
         return false;
