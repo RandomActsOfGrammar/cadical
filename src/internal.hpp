@@ -792,7 +792,7 @@ struct Internal {
     }
     void mark_removed(ILit lit) {
       mark_elim(lit);
-      mark_block(i_neg(lit));
+      mark_block(-(lit));
     }
     void mark_removed(Clause *, ILit except);
     void mark_removed(Clause *c) { mark_removed(c, 0); }

@@ -144,7 +144,7 @@ struct Mapper {
       ILit dst = map_idx (abs (i_val(src)));
       assert (abs (i_val(dst)) <= abs (i_val(src)));
       if (!i_val(dst)) continue;
-      if (i_val(src) < 0) dst = i_neg(dst);
+      if (i_val(src) < 0) dst = -(dst);
       *j++ = dst;
     }
     v.resize (j - v.begin ());

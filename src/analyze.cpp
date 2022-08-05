@@ -305,7 +305,7 @@ inline void Internal::bump_also_reason_literals (ILit lit, int limit) {
     if (i_val(other) == i_val(lit))  continue;
     if (!bump_also_reason_literal (other)) continue;
     if (limit < 2) continue;
-    bump_also_reason_literals (i_neg(other), limit-1);
+    bump_also_reason_literals (-(other), limit-1);
   }
 }
 
@@ -314,7 +314,7 @@ inline void Internal::bump_also_all_reason_literals () {
   assert (opts.bumpreasondepth > 0);
   LOG ("bumping reasons up to depth %d", opts.bumpreasondepth);
   for (const auto & lit : clause)
-      bump_also_reason_literals (i_neg(lit), opts.bumpreasondepth + stable);
+      bump_also_reason_literals (-(lit), opts.bumpreasondepth + stable);
 }
 
 /*------------------------------------------------------------------------*/
@@ -391,7 +391,7 @@ void Internal::justify_lit (ILit lit) {
       for (const_literal_iterator i = c->begin (); i != c->end (); i++) {
         ILit other = *i;
         if (i_val(other) == i_val(lit)) continue;
-        justify_lit (i_neg(other));
+        justify_lit (-(other));
       }
       chain.push_back (c->id);
     } else {
@@ -413,7 +413,7 @@ void Internal::build_chain () {
   }
   for (Flags& f : ftab) f.justified = false;
   for (const_literal_iterator i = conflict->begin (); i != conflict->end (); i++)
-      justify_lit (i_neg(*i));
+      justify_lit (-(*i));
   chain.push_back (conflict->id);
   for (unsigned i = 0; i < clause.size(); i++) {
     var (clause[i]).reason = old_reasons[i];
@@ -785,7 +785,7 @@ void Internal::analyze () {
     LOG (reason, "analyzing %d reason", i_val(uip));
   }
   LOG ("first UIP %d", i_val(uip));
-  clause.push_back (i_neg(uip));
+  clause.push_back (-(uip));
 
   // Update glue and learned (1st UIP literals) statistics.
   //
@@ -836,7 +836,7 @@ void Internal::analyze () {
   UPDATE_AVERAGE (averages.current.level, new_level);
   backtrack (new_level);
 
-  if (i_val(uip)) search_assign_driving (i_neg(uip), driving_clause);
+  if (i_val(uip)) search_assign_driving (-(uip), driving_clause);
   else learn_empty_clause ();
 
   if (stable) reluctant.tick (); // Reluctant has its own 'conflict' counter.

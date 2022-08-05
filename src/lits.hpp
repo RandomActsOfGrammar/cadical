@@ -23,7 +23,6 @@ namespace CaDiCaL {
 
     //so we can switch out for integers more easily
     static inline int i_val(const ILit &i){ return i.ilit; }
-    static inline ILit i_neg(const ILit &i){ return ILit(-i.ilit); }
 
 
     //External literals

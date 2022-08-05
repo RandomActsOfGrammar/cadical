@@ -47,7 +47,7 @@ void Internal::failing () {
     // want an empty core.
 
     clause.push_back (first);
-    clause.push_back (i_neg(first));
+    clause.push_back (-(first));
 
     Flags & f = flags (first);
 
@@ -78,7 +78,7 @@ void Internal::failing () {
       // and not mark 'first' as failed (similarly above).
 
       LOG ("failed assumption %d", first);
-      clause.push_back (i_neg(first));
+      clause.push_back (-(first));
 
       Flags & f = flags (first);
       const unsigned bit = bign (i_val(first));
@@ -101,7 +101,7 @@ void Internal::failing () {
       }
 
       analyzed.push_back (first);
-      clause.push_back (i_neg(first));
+      clause.push_back (-(first));
 
       size_t next = 0;
 
@@ -122,12 +122,12 @@ void Internal::failing () {
             if (f.seen) continue;
             f.seen = true;
             assert (val (other) < 0);
-            analyzed.push_back (i_neg(other));
+            analyzed.push_back (-(other));
           }
         } else {
           assert (assumed (lit));
           LOG ("failed assumption %d", lit);
-          clause.push_back (i_neg(lit));
+          clause.push_back (-(lit));
           Flags & f = flags (lit);
           const unsigned bit = bign (i_val(lit));
           assert (!(f.failed & bit));

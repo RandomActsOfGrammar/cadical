@@ -303,7 +303,7 @@ void Internal::assign_original_unit (clause_id_t id, ILit lit) {
   vals[idx] = tmp;
   vals[-idx] = -tmp;
   assert (val (lit) > 0);
-  assert (val (i_neg(lit)) < 0);
+  assert (val (-(lit)) < 0);
   trail.push_back (lit);
   LOG ("original unit assign %d", lit);
   mark_fixed (lit);

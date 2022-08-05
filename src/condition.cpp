@@ -81,7 +81,7 @@ void Internal::condition_assign (ILit lit) {
   vals[i_val(lit)] = 1;
   vals[-i_val(lit)] = -1;
   assert (val (lit) > 0);
-  assert (val (i_neg(lit)) < 0);
+  assert (val (-(lit)) < 0);
 }
 
 /*------------------------------------------------------------------------*/
@@ -355,9 +355,9 @@ long Internal::condition_round (long delta) {
         if (!tmp) continue;
         assert (tmp < 0);
         if (!var (lit).level) continue; // Not unassigned yet!
-        if (is_conditional_literal (i_neg(lit))) continue;
-        mark_as_conditional_literal (i_neg(lit));
-        conditional.push_back (i_neg(lit));
+        if (is_conditional_literal (-(lit))) continue;
+        mark_as_conditional_literal (-(lit));
+        conditional.push_back (-(lit));
         new_conditionals++;
       }
       if (new_conditionals > 0)
@@ -538,7 +538,7 @@ long Internal::condition_round (long delta) {
       LOG ("processing next conditional %d", conditional_lit);
       assert (is_conditional_literal (conditional_lit));
 
-      if (is_in_candidate_clause (i_neg(conditional_lit))) {
+      if (is_in_candidate_clause (-(conditional_lit))) {
         LOG ("conditional %d negated in candidate clause", conditional_lit);
         continue;
       }
@@ -595,7 +595,7 @@ long Internal::condition_round (long delta) {
             const ILit lit = *l;
             const signed char tmp = val (lit);
             if (tmp > 0) replacement = lit;
-            if (tmp < 0 && is_autarky_literal (i_neg(lit))) negative = ILit(i_val(negative) + 1);
+            if (tmp < 0 && is_autarky_literal (-(lit))) negative = ILit(i_val(negative) + 1);
           }
 
           if (i_val(replacement)) {
@@ -627,9 +627,9 @@ long Internal::condition_round (long delta) {
                l++)
           {
             const ILit lit = *l;
-            if (!is_autarky_literal (i_neg(lit))) continue;
-            mark_as_conditional_literal (i_neg(lit));
-            conditional.push_back (i_neg(lit));
+            if (!is_autarky_literal (-(lit))) continue;
+            mark_as_conditional_literal (-(lit));
+            conditional.push_back (-(lit));
 
             remain.conditional++;
             assert (remain.autarky > 0);

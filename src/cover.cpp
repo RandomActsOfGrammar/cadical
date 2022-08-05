@@ -122,7 +122,7 @@ Internal::cover_propagate_asymmetric (ILit lit,
       if (b < 0) {
         LOG (w.clause, "found subsuming");
         subsumed = true;
-      } else asymmetric_literal_addition (i_neg(w.blit), coveror);
+      } else asymmetric_literal_addition (-(w.blit), coveror);
     } else {
       literal_iterator lits = w.clause->begin ();
       const int other = i_val(lits[0])^i_val(lits[1])^i_val(lit);
@@ -191,7 +191,7 @@ Internal::cover_propagate_covered (ILit lit, Coveror & coveror)
   LOG ("covered propagation of %d", lit);
   assert (coveror.intersection.empty ());
 
-  Occs & os = occs (i_neg(lit));
+  Occs & os = occs (-(lit));
   const auto end = os.end ();
   bool first = true;
 
