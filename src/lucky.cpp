@@ -38,7 +38,7 @@ int Internal::trivially_false_satisfiable () {
       const signed char tmp = val (lit);
       if (tmp > 0) { satisfied = true; break; }
       if (tmp < 0) continue;
-      if (lit > 0) continue;
+      if (i_val(lit) > 0) continue;
       found_negative_literal = true;
       break;
     }
@@ -73,7 +73,7 @@ int Internal::trivially_true_satisfiable () {
       const signed char tmp = val (lit);
       if (tmp > 0) { satisfied = true; break; }
       if (tmp < 0) continue;
-      if (lit < 0) continue;
+      if (i_val(lit) < 0) continue;
       found_positive_literal = true;
       break;
     }
@@ -183,18 +183,18 @@ int Internal::positive_horn_satisfiable () {
     if (terminated_asynchronously (10)) return unlucky (-1);
     if (c->garbage) continue;
     if (c->redundant) continue;
-    int positive_literal = 0;
+    ILit positive_literal = 0;
     bool satisfied = false;
     for (const auto & lit : *c) {
       const signed char tmp = val (lit);
       if (tmp > 0) { satisfied = true; break; }
       if (tmp < 0) continue;
-      if (lit < 0) continue;
+      if (i_val(lit) < 0) continue;
       positive_literal = lit;
       break;
     }
     if (satisfied) continue;
-    if (!positive_literal) {
+    if (!i_val(positive_literal)) {
       LOG (c, "no positive unassigned literal in");
       return unlucky (0);
     }
@@ -229,18 +229,18 @@ int Internal::negative_horn_satisfiable () {
     if (terminated_asynchronously (10)) return unlucky (-1);
     if (c->garbage) continue;
     if (c->redundant) continue;
-    int negative_literal = 0;
+    ILit negative_literal = 0;
     bool satisfied = false;
     for (const auto & lit : *c) {
       const signed char tmp = val (lit);
       if (tmp > 0) { satisfied = true; break; }
       if (tmp < 0) continue;
-      if (lit > 0) continue;
+      if (i_val(lit) > 0) continue;
       negative_literal = lit;
       break;
     }
     if (satisfied) continue;
-    if (!negative_literal) {
+    if (!i_val(negative_literal)) {
       if (level > 0) backtrack ();
       LOG (c, "no negative unassigned literal in");
       return unlucky (0);

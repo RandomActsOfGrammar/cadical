@@ -21,7 +21,7 @@ namespace CaDiCaL {
 #ifndef NDEBUG
     unsigned kept = 0, minireset = 0;
     for(; minimized_start < minimized.size(); ++minimized_start) {
-      const int lit = minimized[minimized_start];
+      const ILit lit = minimized[minimized_start];
       Flags &f = flags(lit);
       const Var &v = var(lit);
       if (v.level == blevel) {
@@ -36,7 +36,7 @@ namespace CaDiCaL {
 #endif
 
 
-    for (const int lit : shrinkable) {
+    for (const ILit lit : shrinkable) {
       Flags &f = flags(lit);
       assert(f.shrinkable);
       assert(!f.poison);
@@ -52,7 +52,7 @@ namespace CaDiCaL {
     LOG("marked %zu removable variables", marked);
   }
 
-  int inline Internal::shrink_literal(int lit, int blevel, unsigned max_trail)
+  int inline Internal::shrink_literal(ILit lit, int blevel, unsigned max_trail)
   {
     assert(val(lit) < 0);
 
@@ -98,9 +98,9 @@ namespace CaDiCaL {
   }
 
   unsigned Internal::shrunken_block_uip(
-      int uip, int blevel, std::vector<int>::reverse_iterator &rbegin_block,
-      std::vector<int>::reverse_iterator &rend_block,
-      std::vector<int>::size_type minimized_start, const int uip0)
+      ILit uip, int blevel, std::vector<ILit>::reverse_iterator &rbegin_block,
+      std::vector<ILit>::reverse_iterator &rend_block,
+      std::vector<ILit>::size_type minimized_start, const ILit uip0)
   {
     assert(clause[0] == uip0);
 
@@ -123,7 +123,7 @@ namespace CaDiCaL {
     flags(-uip).keep = true;
     for (auto p = rbegin_block + 1; p != rend_block; ++p) 
       {
-        const int lit = *p;
+        const ILit lit = *p;
         if (lit == -uip0) continue;
         *p = uip0;
         // if (lit == -uip) continue;
@@ -136,17 +136,17 @@ namespace CaDiCaL {
   }
 
   void inline Internal::shrunken_block_no_uip(
-                                              const std::vector<int>::reverse_iterator &rbegin_block,
-                                              const std::vector<int>::reverse_iterator &rend_block,
+                                              const std::vector<ILit>::reverse_iterator &rbegin_block,
+                                              const std::vector<ILit>::reverse_iterator &rend_block,
                                               unsigned &block_minimized,
-                                              const int uip0) {
+                                              const ILit uip0) {
     STOP(shrink);
     START(minimize);
     assert(rend_block > rbegin_block);
     LOG("no UIP found, now minimizing");
     for (auto p = rbegin_block; p != rend_block; ++p) {
       assert(p != clause.rend() - 1);
-      const int lit = *p;
+      const ILit lit = *p;
       if (opts.minimize && minimize_literal(-lit)) {
         assert(!flags(lit).keep);
         ++block_minimized;
@@ -160,15 +160,15 @@ namespace CaDiCaL {
     START(shrink);
   }
 
-  void Internal::push_literals_of_block(const std::vector<int>::reverse_iterator &rbegin_block,
-                                        const std::vector<int>::reverse_iterator &rend_block,
+  void Internal::push_literals_of_block(const std::vector<ILit>::reverse_iterator &rbegin_block,
+                                        const std::vector<ILit>::reverse_iterator &rend_block,
                                         int blevel, unsigned max_trail)
   {
     assert(rbegin_block < rend_block);
     for(auto p = rbegin_block; p != rend_block; ++p) {
       assert(p != clause.rend() - 1);
       assert(!flags(*p).keep);
-      const int lit = *p;
+      const ILit lit = *p;
       LOG("pushing lit %i of blevel %i", lit, var(lit).level);
 #ifndef NDEBUG
       int tmp =
@@ -178,7 +178,7 @@ namespace CaDiCaL {
     }
   }
 
-  unsigned inline Internal::shrink_next(unsigned &open, unsigned& max_trail)
+  ILit inline Internal::shrink_next(unsigned &open, unsigned& max_trail)
   {
     if(opts.shrinkreap) {
       assert(!reap.empty());
@@ -187,12 +187,12 @@ namespace CaDiCaL {
       assert (dist <= max_trail);
       const unsigned pos = max_trail - dist;
       assert(pos < trail.size());
-      const int uip = trail[pos];
+      const ILit uip = trail[pos];
       assert(val(uip) > 0);
       LOG("trying to shrink literal %d at trail[%u]", uip, pos);
       return uip;
     } else {
-      int uip;
+      ILit uip;
 #ifndef NDEBUG
       unsigned init_max_trail = max_trail;
 #endif
@@ -206,7 +206,7 @@ namespace CaDiCaL {
     }
   }
 
-  unsigned inline Internal::shrink_along_reason(int uip, int blevel, bool resolve_large_clauses, bool &failed_ptr, unsigned max_trail)
+  unsigned inline Internal::shrink_along_reason(ILit uip, int blevel, bool resolve_large_clauses, bool &failed_ptr, unsigned max_trail)
   {
     LOG("shrinking along the reason of lit %i", uip);
     unsigned open = 0;
@@ -223,7 +223,7 @@ namespace CaDiCaL {
       {
         const Clause &c = *v.reason;
         LOG(v.reason, "resolving with reason");
-        for(int lit : c) {
+        for(ILit lit : c) {
           if(lit == uip)
             continue;
           assert(val(lit) < 0);
@@ -243,12 +243,12 @@ namespace CaDiCaL {
     return open;
   }
 
-  unsigned Internal::shrink_block(std::vector<int>::reverse_iterator &rbegin_lits,
-                                  std::vector<int>::reverse_iterator &rend_block,
+  unsigned Internal::shrink_block(std::vector<ILit>::reverse_iterator &rbegin_lits,
+                                  std::vector<ILit>::reverse_iterator &rend_block,
                                   int blevel,
                                   unsigned &open,
                                   unsigned & block_minimized,
-                                  const int uip0,
+                                  const ILit uip0,
                                   unsigned max_trail)
   {
     assert(shrinkable.empty());
@@ -267,7 +267,7 @@ namespace CaDiCaL {
     bool failed = (opts.shrink == 0);
     unsigned block_shrunken = 0;
     std::vector<int>::size_type minimized_start = minimized.size();
-    int uip = uip0;
+    ILit uip = uip0;
     unsigned max_trail2 = max_trail;
 
     if(!failed) {
@@ -310,7 +310,7 @@ namespace CaDiCaL {
     Internal *internal;
     shrink_trail_negative_rank(Internal *s) : internal(s) {}
     typedef uint64_t Type;
-    Type operator()(int a) {
+    Type operator()(ILit a) {
       Var &v = internal->var(a);
       uint64_t res = v.level;
       res <<= 32;
@@ -322,7 +322,7 @@ namespace CaDiCaL {
   struct shrink_trail_larger {
     Internal *internal;
     shrink_trail_larger(Internal *s) : internal(s) {}
-    bool operator()(const int &a, const int &b) const {
+    bool operator()(const ILit &a, const ILit &b) const {
       return shrink_trail_negative_rank(internal)(a) <
              shrink_trail_negative_rank(internal)(b);
     }
@@ -330,10 +330,10 @@ namespace CaDiCaL {
 
   // Finds the beginning of the block (rend_block, non-included) ending at rend_block (included).
   // Then tries to shrinks and minimizes literals  the block
-  std::vector<int>::reverse_iterator Internal::minimize_and_shrink_block(
-          std::vector<int>::reverse_iterator &rbegin_block, unsigned &total_shrunken,
+  std::vector<ILit>::reverse_iterator Internal::minimize_and_shrink_block(
+          std::vector<ILit>::reverse_iterator &rbegin_block, unsigned &total_shrunken,
           unsigned &total_minimized,
-          const int uip0)
+          const ILit uip0)
 
   {
     LOG("shrinking block");
@@ -343,10 +343,10 @@ namespace CaDiCaL {
     unsigned max_trail;
  
     // find begining of block;
-    std::vector<int>::reverse_iterator rend_block;
+    std::vector<ILit>::reverse_iterator rend_block;
     {
       assert(rbegin_block <= clause.rend());
-      const int lit = *rbegin_block;
+      const ILit lit = *rbegin_block;
       const int idx = vidx (lit);
       blevel = vtab[idx].level;
       max_trail = vtab[idx].trail;
@@ -357,7 +357,7 @@ namespace CaDiCaL {
       bool finished;
       do {
         assert(rend_block < clause.rend() - 1);
-        const int lit = *(++rend_block);
+        const ILit lit = *(++rend_block);
         const int idx = vidx (lit);
         finished = (blevel != vtab[idx].level);
         if(!finished && (unsigned)vtab[idx].trail > max_trail)
@@ -405,7 +405,7 @@ namespace CaDiCaL {
 
     auto rend_lits = clause.rend() -1;
     auto rend_block = clause.rbegin();
-    const int uip0 = clause[0];
+    const ILit uip0 = clause[0];
 
     while (rend_block != rend_lits) {
       rend_block = minimize_and_shrink_block(rend_block,

@@ -269,7 +269,7 @@ CaDiCaL::CubesWithStatus External::generate_cubes (int depth, int min_depth = 0)
     MSG ("lookahead internal %d external %d", i_val(ilit), e_val(elit));
     return elit;
   };
-  auto externalize_map = [this, externalize](std::vector<int> cube) {
+  auto externalize_map = [this, externalize](std::vector<ILit> cube) {
     (void) this;
     MSG("Cube : ");
     std::for_each(begin(cube), end(cube), externalize);
@@ -444,7 +444,7 @@ External::traverse_all_frozen_units_as_clauses (ClauseIterator & it)
 {
   if (internal->unsat) return true;
 
-  vector<int> clause;
+  vector<ILit> clause;
 
   for (auto idx : vars) {
     if (!frozen (idx)) continue;
@@ -533,7 +533,7 @@ void External::export_learned_unit_clause (clause_id_t clause_id, ELit elit) {
     LOG ("not exporting learned unit clause");
 }
 
-void External::export_learned_large_clause (clause_id_t clause_id, const vector<int> & clause, int glue) {
+void External::export_learned_large_clause (clause_id_t clause_id, const vector<ELit> & clause, int glue) {
   assert (learner);
   size_t size = clause.size ();
   assert (size <= (unsigned) INT_MAX);

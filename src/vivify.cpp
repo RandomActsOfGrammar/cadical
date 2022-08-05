@@ -46,7 +46,7 @@ namespace CaDiCaL {
 // can be inlined separately here.  The propagation routine needs to ignore
 // (large) clauses which are currently vivified.
 
-inline void Internal::vivify_assign (int lit, Clause * reason) {
+inline void Internal::vivify_assign (ILit lit, Clause * reason) {
   require_mode (VIVIFY);
   const int idx = vidx (lit);
   assert (!vals[idx]);
@@ -58,7 +58,7 @@ inline void Internal::vivify_assign (int lit, Clause * reason) {
   if (!level) {
     if (proof && reason) {
       for (const_literal_iterator l = reason->begin (); l != reason->end (); l++) {
-        const int lit2 = *l;
+        const ILit lit2 = *l;
         if (lit2 == lit) continue;
         clause_id_t id = var (lit2).unit_id;
         assert (id);
@@ -68,7 +68,7 @@ inline void Internal::vivify_assign (int lit, Clause * reason) {
     }
     learn_unit_clause (lit);
   }
-  const signed char tmp = sign (lit);
+  const signed char tmp = sign (i_val(lit));
   vals[idx] = tmp;
   vals[-idx] = -tmp;
   assert (val (lit) > 0);
@@ -79,7 +79,7 @@ inline void Internal::vivify_assign (int lit, Clause * reason) {
 
 // Assume negated literals in candidate clause.
 
-void Internal::vivify_assume (int lit) {
+void Internal::vivify_assume (ILit lit) {
   require_mode (VIVIFY);
   level++;
   control.push_back (Level (lit, trail.size ()));
@@ -100,7 +100,7 @@ bool Internal::vivify_propagate () {
   int64_t before = propagated2 = propagated;
   for (;;) {
     if (propagated2 != trail.size ()) {
-      const int lit = -trail[propagated2++];
+      const ILit lit = -trail[propagated2++];
       LOG ("vivify propagating %d over binary clauses", -lit);
       Watches & ws = watches (lit);
       for (const auto & w : ws) {
@@ -111,7 +111,7 @@ bool Internal::vivify_propagate () {
         else vivify_assign (w.blit, w.clause);
       }
     } else if (!conflict && propagated != trail.size ()) {
-      const int lit = -trail[propagated++];
+      const ILit lit = -trail[propagated++];
       LOG ("vivify propagating %d over large clauses", -lit);
       Watches & ws = watches (lit);
       const const_watch_iterator eow = ws.end ();
@@ -124,7 +124,7 @@ bool Internal::vivify_propagate () {
         if (w.clause->garbage) { j--; continue; }
         if (w.clause == ignore) continue;
         literal_iterator lits = w.clause->begin ();
-        const int other = lits[0]^lits[1]^lit;
+        const ILit other = i_val(lits[0])^i_val(lits[1])^i_val(lit);
         const signed char u = val (other);
         if (u > 0) j[-1].blit = other;
         else {
@@ -134,12 +134,12 @@ bool Internal::vivify_propagate () {
           literal_iterator k = middle;
           signed char v = -1;
           int r = 0;
-          while (k != end && (v = val (r = *k)) < 0)
+          while (k != end && (v = val (r = i_val(*k))) < 0)
             k++;
           if (v < 0) {
             k = lits + 2;
             assert (w.clause->pos <= size);
-            while (k != middle && (v = val (r = *k)) < 0)
+            while (k != middle && (v = val (r = i_val(*k))) < 0)
               k++;
           }
           w.clause->pos = k - lits;
@@ -189,13 +189,13 @@ struct vivify_more_noccs {
 
   vivify_more_noccs (Internal * i) : internal (i) { }
 
-  bool operator () (int a, int b) {
+  bool operator () (ILit a, ILit b) {
     int64_t n = internal->noccs (a);
     int64_t m = internal->noccs (b);
     if (n > m) return true;     // larger occurrences / score first
     if (n < m) return false;    // smaller occurrences / score last
-    if (a == -b) return a > 0;  // positive literal first
-    return abs (a) < abs (b);   // smaller index first
+    if (a == -b) return i_val(a) > 0;  // positive literal first
+    return abs (i_val(a)) < abs (i_val(b));   // smaller index first
   }
 };
 
@@ -300,7 +300,7 @@ struct vivify_flush_smaller {
     const auto eoa = a->end (), eob = b->end ();
     auto i = a->begin (), j = b->begin ();
     for (; i != eoa && j != eob; i++, j++)
-      if (*i != *j) return *i < *j;
+      if (*i != *j) return i_val(*i) < i_val(*j);
 
     return j == eob && i != eoa;
   }
@@ -401,7 +401,7 @@ void Internal::vivify_analyze_redundant (Vivifier & vivifier,
 
 // Check whether we assigned all literals to false and none is implied.
 
-bool Internal::vivify_all_decisions (Clause * c, int subsume) {
+bool Internal::vivify_all_decisions (Clause * c, ILit subsume) {
 
   // assert (redundant_mode);
 
@@ -426,7 +426,7 @@ bool Internal::vivify_all_decisions (Clause * c, int subsume) {
 // to force keeping that literal (see case '@5' below, where we found this
 // positively implied literal).
 
-void Internal::vivify_post_process_analysis (Clause * c, int subsume) {
+void Internal::vivify_post_process_analysis (Clause * c, ILit subsume) {
 
   // assert (redundant_mode);
 
@@ -475,7 +475,7 @@ struct vivify_better_watch {
 
   vivify_better_watch (Internal * i) : internal (i) { }
 
-  bool operator () (int a, int b) {
+  bool operator () (ILit a, ILit b) {
 
     const signed char av = internal->val (a), bv = internal->val (b);
 
@@ -498,7 +498,7 @@ void Internal::vivify_strengthen (Clause * c) {
   if (clause.size () == 1) {
 
     backtrack ();
-    const int unit = clause[0];
+    const ILit unit = clause[0];
     LOG (c, "vivification shrunken to unit %d", unit);
     assert (!val (unit));
     assign_unit (unit);
@@ -516,7 +516,7 @@ void Internal::vivify_strengthen (Clause * c) {
 
     int new_level = level;
 
-    const int lit0 = clause[0];
+    const ILit lit0 = clause[0];
     signed char val0 = val (lit0);
     if (val0 < 0) {
       const int level0 = var (lit0).level;
@@ -524,7 +524,7 @@ void Internal::vivify_strengthen (Clause * c) {
       new_level = level0 - 1;
     }
 
-    const int lit1 = clause[1];
+    const ILit lit1 = clause[1];
     const signed char val1 = val (lit1);
     if (val1 < 0 &&
         !(val0 > 0 && var (lit0).level <= var (lit1).level)) {
@@ -572,7 +572,7 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
   // watches during propagation, even though we sorted them initially
   // while pushing the clause onto the schedule and sorting the schedule.
   //
-  int satisfied = 0;
+  ILit satisfied = 0;
   auto & sorted = vivifier.sorted;
   sorted.clear ();
 
@@ -582,7 +582,7 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
     else if (!tmp) sorted.push_back (lit);
   }
 
-  if (satisfied) {
+  if (i_val(satisfied)) {
     LOG (c, "satisfied by propagated unit %d", satisfied);
     mark_garbage (c);
     return;
@@ -616,7 +616,7 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
     // redundancy by other clauses using this forced literal becomes
     // impossible.
     //
-    int forced = 0;
+    ILit forced = 0;
 
     // This search could be avoided if we would eagerly set the 'reason'
     // boolean flag of clauses, which however we do not want to do for
@@ -632,8 +632,8 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
       if (tmp > 0 && var (lit).reason == c) forced = lit;
       break;
     }
-    if (forced) {
-      LOG ("clause is reason forcing %d", forced);
+    if (i_val(forced)) {
+      LOG ("clause is reason forcing %d", i_val(forced));
       assert (var (forced).level);
       backtrack (var (forced).level - 1);
     }
@@ -647,7 +647,7 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
 
       for (const auto & lit : sorted) {
 	if (fixed (lit)) continue;
-	const int decision = control[l].decision;
+	const ILit decision = control[l].decision;
 	if (-lit == decision) {
 	  LOG ("reusing decision %d at decision level %d", decision, l);
 	  stats.vivifyreused++;
@@ -676,8 +676,8 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
   //
   ignore = c;
 
-  int subsume = 0;            // determined to be redundant / subsumed
-  int remove = 0;             // at least literal 'remove' can be removed
+  ILit subsume = 0;            // determined to be redundant / subsumed
+  ILit remove = 0;             // at least literal 'remove' can be removed
 
   // If the candidate is redundant, i.e., we are in redundant mode, the
   // clause is subsumed (in one of the two cases below where 'subsume' is
@@ -697,7 +697,7 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
     // Exit loop as soon a literal is positively implied (case '@5' below)
     // or propagation of the negation of a literal fails ('@6').
     //
-    if (subsume) break;
+      if (i_val(subsume)) break;
 
     // We keep on assigning literals, even though we know already that we
     // can remove one (was negatively implied), since we either might run
@@ -799,7 +799,7 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
   assert (ignore == c);
   ignore = 0;
 
-  if (subsume) {
+  if (i_val(subsume)) {
 
     if (redundant_mode && !only_binary_reasons) {
 
@@ -844,7 +844,7 @@ void Internal::vivify_clause (Vivifier & vivifier, Clause * c) {
 
     }
 
-  } else if (remove) {
+  } else if (i_val(remove)) {
 
     assert (level);
     assert (clause.empty ());

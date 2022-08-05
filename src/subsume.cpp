@@ -89,7 +89,7 @@ bool Internal::subsuming () {
 // strengthened and as a result the negation of the literal which can be
 // removed is returned.
 
-inline int Internal::subsume_check (Clause * subsuming, Clause * subsumed)
+inline ILit Internal::subsume_check (Clause * subsuming, Clause * subsumed)
 {
 #ifdef NDEBUG
   (void) subsumed;
@@ -105,25 +105,25 @@ inline int Internal::subsume_check (Clause * subsuming, Clause * subsumed)
   stats.subchecks++;
   if (subsuming->size == 2) stats.subchecks2++;
 
-  int flipped = 0, prev = 0;
+  ILit flipped = 0, prev = 0;
   bool failed = false;
   const auto eoc = subsuming->end ();
   for (auto i = subsuming->begin (); !failed && i != eoc; i++) {
-    int lit = *i;
+    ILit lit = *i;
     *i = prev;
     prev = lit;
     const int tmp = marked (lit);
     if (!tmp) failed = true;
     else if (tmp > 0) continue;
-    else if (flipped) failed = true;
-    else flipped = lit;
+    else if (i_val(flipped)) failed = true;
+    else flipped = i_val(lit);
   }
-  assert (prev);
+  assert (i_val(prev));
   assert (!subsuming->literals[0]);
   subsuming->literals[0] = prev;
   if (failed) return 0;
 
-  if (!flipped) return INT_MIN;                   // subsumed!!
+  if (!i_val(flipped)) return INT_MIN;                   // subsumed!!
   else if (!opts.subsumestr) return 0;
   else {
     chain = {subsuming->id, subsumed->id};
@@ -159,7 +159,7 @@ Internal::subsume_clause (Clause * subsuming, Clause * subsumed) {
 
 // Candidate clause 'c' is strengthened by removing 'lit'.
 
-void Internal::strengthen_clause (Clause * c, int lit) {
+void Internal::strengthen_clause (Clause * c, ILit lit) {
   stats.strengthened++;
   assert (c->size > 2);
   LOG (c, "removing %d in", lit);
@@ -193,7 +193,7 @@ Internal::try_to_subsume_clause (Clause * c, vector<Clause *> & shrunken) {
   Clause dummy; // Communicate binary subsuming clause.
 
   Clause * d = 0;
-  int flipped = 0;
+  ILit flipped = 0;
 
   for (const auto & lit : *c) {
 
@@ -220,7 +220,7 @@ Internal::try_to_subsume_clause (Clause * c, vector<Clause *> & shrunken) {
       // removed in 'c', otherwise to 'INT_MIN' which is a non-valid
       // literal.
       //
-      for (const auto & bin : bins (sign*lit) ) {
+      for (const auto & bin : bins (sign*i_val(lit)) ) {
         const auto & other = bin.lit;
         const int tmp = marked (other);
         if (!tmp) continue;
@@ -231,7 +231,7 @@ Internal::try_to_subsume_clause (Clause * c, vector<Clause *> & shrunken) {
           dummy.literals[1] = other;
           flipped = other;
         } else {
-          dummy.literals[0] = sign*lit;
+          dummy.literals[0] = sign*i_val(lit);
           dummy.literals[1] = other;
           flipped = (sign < 0) ? -lit : INT_MIN;
         }
@@ -250,12 +250,12 @@ Internal::try_to_subsume_clause (Clause * c, vector<Clause *> & shrunken) {
       // as above for communicating 'subsumption' or 'strengthening' to the
       // code after the loop is used.
       //
-      const Occs & os = occs (sign * lit);
+      const Occs & os = occs (sign * i_val(lit));
       for (const auto & e : os) {
         assert (!e->garbage);                   // sanity check
         if (e->garbage) continue;               // defensive: not needed
         flipped = subsume_check (e, c);
-        if (!flipped) continue;
+        if (!i_val(flipped)) continue;
         d = e;                                  // leave also outer loop
         break;
       }
@@ -272,7 +272,7 @@ Internal::try_to_subsume_clause (Clause * c, vector<Clause *> & shrunken) {
     return 1;
   }
 
-  if (flipped) {
+  if (i_val(flipped)) {
     LOG (d, "strengthening");
     strengthen_clause (c, -flipped);
     assert (likely_to_be_kept_clause (c));
@@ -306,14 +306,14 @@ struct smaller_clause_size_rank {
 struct subsume_less_noccs {
   Internal * internal;
   subsume_less_noccs (Internal * i) : internal (i) { }
-  bool operator () (int a, int b) {
+  bool operator () (ILit a, ILit b) {
     const signed char u = internal->val (a), v = internal->val (b);
     if (!u && v) return true;
     if (u && !v) return false;
     const int64_t m = internal->noccs (a), n = internal ->noccs (b);
     if (m < n) return true;
     if (m > n) return false;
-    return abs (a) < abs (b);
+    return abs (i_val(a)) < abs (i_val(b));
   }
 };
 
@@ -467,7 +467,7 @@ bool Internal::subsume_round () {
     // note that this number is usually way smaller than the number of
     // occurrences computed before and stored in 'noccs'.
     //
-    int minlit = 0;
+    ILit minlit = 0;
     int64_t minoccs = 0;
     size_t minsize = 0;
     bool subsume = true;
@@ -477,9 +477,9 @@ bool Internal::subsume_round () {
 
       if (!flags (lit).subsume) subsume = false;
       const size_t size = binary ? bins (lit).size () : occs (lit).size ();
-      if (minlit && minsize <= size) continue;
+      if (i_val(minlit) && minsize <= size) continue;
       const int64_t tmp = noccs (lit);
-      if (minlit && minsize == size && tmp <= minoccs) continue;
+      if (i_val(minlit) && minsize == size && tmp <= minoccs) continue;
       minlit = lit, minsize = size, minoccs = tmp;
     }
 
@@ -523,7 +523,7 @@ bool Internal::subsume_round () {
         minlit, minsize, minoccs);
 
       const int minlit_pos = (c->literals[1] == minlit);
-      const int other = c->literals[!minlit_pos];
+      const ILit other = c->literals[!minlit_pos];
       bins (minlit).push_back (Bin{other, c->id});
     }
   }

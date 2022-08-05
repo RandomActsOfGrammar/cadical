@@ -171,9 +171,9 @@ void Internal::init_vars (int new_max_var) {
   LOG ("finished initializing %d internal variables", initialized);
 }
 
-void Internal::add_original_lit (int lit) {
+void Internal::add_original_lit (ILit lit) {
   assert (abs (lit) <= max_var);
-  if (lit) {
+  if (i_val(lit)) {
     original.push_back (lit);
   } else {
     // to keep all the original clauses the same across all, they get
@@ -342,7 +342,7 @@ int Internal::check_clause_import(std::vector<int> cls){
             }
         } else{
             //only include non-fixed literals in the clause
-            clause.push_back(elit);
+            clause.push_back (ilit);
         }
         i++;
     }
@@ -821,16 +821,16 @@ int Internal::restore_clauses () {
   return res;
 }
 
-int Internal::lookahead () {
+ILit Internal::lookahead () {
   assert (clause.empty ());
   START (lookahead);
   assert (!lookingahead);
   lookingahead = true;
   int tmp = already_solved ();
   if (!tmp) tmp = restore_clauses ();
-  int res = 0;
+  ILit res = 0;
   if (!tmp) res = lookahead_probing ();
-  if (res == INT_MIN) res = 0;
+  if (i_val(res) == INT_MIN) res = 0;
   reset_solving ();
   report_solving (tmp);
   assert (lookingahead);
@@ -870,7 +870,7 @@ void Internal::print_statistics () {
 
 void Internal::dump (Clause * c) {
   for (const auto & lit : *c)
-    printf ("%d ", lit);
+      printf ("%d ", i_val(lit));
   printf ("0\n");
 }
 
@@ -888,7 +888,7 @@ void Internal::dump () {
   for (const auto & c : clauses)
     if (!c->garbage) dump (c);
   for (const auto & lit : assumptions)
-    printf ("%d 0\n", lit);
+      printf ("%d 0\n", i_val(lit));
   fflush (stdout);
 }
 
@@ -896,7 +896,9 @@ void Internal::dump () {
 
 bool Internal::traverse_clauses (ClauseIterator & it) {
   vector<ELit> eclause;
-  if (unsat) return it.clause (eclause);
+  if (unsat){
+      return it.clause (eclause);
+  }
   for (const auto & c : clauses) {
     if (c->garbage) continue;
     if (c->redundant) continue;

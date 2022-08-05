@@ -2,13 +2,14 @@
 #define _bins_hpp_INCLUDED
 
 #include "util.hpp"     // Alphabetically after 'bins'.
+#include "lits.hpp"
 
 namespace CaDiCaL {
 
 using namespace std;
 
 struct Bin {
-  int lit;
+  ILit lit;
   clause_id_t clause_id;
 };
 

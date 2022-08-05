@@ -29,7 +29,7 @@ struct Mapper {
   int new_max_var;              // New 'max_var' after compacting.
   int * table;                  // Old variable index to new literal map.
   int first_fixed;              // First fixed variable index.
-  int map_first_fixed;          // Mapped literal of first fixed variable.
+  ILit map_first_fixed;          // Mapped literal of first fixed variable.
   signed char first_fixed_val;  // Value of first fixed variable.
   size_t new_vsize;
 
@@ -56,8 +56,11 @@ struct Mapper {
     for (auto src : internal->vars) {
       const Flags & f = internal->flags (src);
       if (f.active ()) table[src] = ++new_max_var;
-      else if (f.fixed () && !first_fixed)
-        table[first_fixed = src] = map_first_fixed = ++new_max_var;
+      else if (f.fixed () && !i_val(first_fixed)){
+          //table[first_fixed = src] = map_first_fixed = ++new_max_var;
+          table[first_fixed = src] = ++new_max_var;
+          map_first_fixed = new_max_var;
+      }
     }
 
     first_fixed_val = first_fixed ? internal->val (first_fixed) : 0;
@@ -82,16 +85,16 @@ struct Mapper {
   // to care about signedness of 'src', and in addition that fixed variables
   // have all to be mapped to the first fixed variable 'first_fixed'.
   //
-  int map_lit (int src) {
-    int res = map_idx (abs (src));
+  int map_lit (ILit src) {
+    int res = map_idx (abs (i_val(src)));
     if (!res) {
       const signed char tmp = internal->val (src);
       if (tmp) {
         assert (first_fixed);
-        res = map_first_fixed;
+        res = i_val(map_first_fixed);
         if (tmp != first_fixed_val) res = -res;
       }
-    } else if ((src) < 0) res = -res;
+    } else if (i_val(src) < 0) res = -res;
     assert (abs (res) <= new_max_var);
     return res;
   }
@@ -133,15 +136,15 @@ struct Mapper {
   // Map a vector of literals, flush inactive literals, then resize and
   // shrink it to fit the new size after flushing.
   //
-  void map_flush_and_shrink_lits (vector<int> & v) {
+  void map_flush_and_shrink_lits (vector<ILit> & v) {
     const auto end = v.end ();
     auto j = v.begin (), i = j;
     for (; i != end; i++) {
-      const int src = *i;
-      int dst = map_idx (abs (src));
-      assert (abs (dst) <= abs (src));
-      if (!dst) continue;
-      if (src < 0) dst = -dst;
+      const ILit src = *i;
+      ILit dst = map_idx (abs (i_val(src)));
+      assert (abs (i_val(dst)) <= abs (i_val(src)));
+      if (!i_val(dst)) continue;
+      if (i_val(src) < 0) dst = i_neg(dst);
       *j++ = dst;
     }
     v.resize (j - v.begin ());

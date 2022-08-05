@@ -27,7 +27,7 @@ void ccadical_set_terminate (CCaDiCaL *,
   void * state, int (*terminate)(void * state));
 
 void ccadical_set_learn (CCaDiCaL *,
-  void * state, int max_length, void (*learn)(void * state, ELit * clause));
+  void * state, int max_length, void (*learn)(void * state, int * clause));
 
 /*------------------------------------------------------------------------*/
 

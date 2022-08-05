@@ -18,7 +18,7 @@ void External::check_solution_on_learned_clause () {
   fatal_message_start ();
   fputs ("learned clause unsatisfied by solution:\n", stderr);
   for (const auto & lit : internal->clause)
-    fprintf (stderr, "%d ", lit);
+      fprintf (stderr, "%d ", i_val(lit));
   fputc ('0', stderr);
   fatal_message_end ();
 }
@@ -30,7 +30,7 @@ void External::check_solution_on_shrunken_clause (Clause * c) {
       return;
   fatal_message_start ();
   for (const auto & lit : *c)
-    fprintf (stderr, "%d ", lit);
+      fprintf (stderr, "%d ", i_val(lit));
   fputc ('0', stderr);
   fatal_message_end ();
 }
@@ -40,10 +40,10 @@ void External::check_no_solution_after_learning_empty_clause () {
   FATAL ("learned empty clause but got solution");
 }
 
-void External::check_solution_on_learned_unit_clause (int unit) {
+void External::check_solution_on_learned_unit_clause (ILit unit) {
   assert (solution);
   if (sol (internal->externalize (unit)) > 0) return;
-  FATAL ("learned unit %d contradicts solution", unit);
+  FATAL ("learned unit %d contradicts solution", i_val(unit));
 }
 
 }

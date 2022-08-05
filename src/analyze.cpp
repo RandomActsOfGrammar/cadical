@@ -25,17 +25,17 @@ void Internal::learn_empty_clause () {
   unsat = true;
 }
 
-void Internal::learn_unit_clause (clause_id_t id, int lit, bool is_imported) {
+void Internal::learn_unit_clause (clause_id_t id, ILit lit, bool is_imported) {
   id = id ? id : next_clause_id();
   external->check_learned_unit_clause (lit);
   if (proof) {
     var (lit).unit_id = id;
-    int eidx = i2e[abs (lit)];
+    int eidx = i2e[abs (i_val(lit))];
     LOG ("learned unit clause [%ld] %d (external %d)", id, lit, eidx);
     external->set_unit_id (eidx, id);
     proof->add_derived_unit_clause (id, lit, is_imported);
   } else {
-    LOG ("learned unit clause [%ld] %d", id, lit);
+    LOG ("learned unit clause [%ld] %d", id, i_val(lit));
   }
   mark_fixed (lit);
 }
@@ -46,7 +46,7 @@ void Internal::learn_unit_clause (clause_id_t id, int lit, bool is_imported) {
 // 'bumped' time stamp is updated accordingly.  It is used to determine
 // whether the 'queue.assigned' pointer has to be moved in 'unassign'.
 
-void Internal::bump_queue (int lit) {
+void Internal::bump_queue (ILit lit) {
   assert (opts.bump);
   const int idx = vidx (lit);
   if (!links[idx].next) return;
@@ -95,7 +95,7 @@ void Internal::rescale_variable_scores () {
     score_inc, stats.conflicts);
 }
 
-void Internal::bump_variable_score (int lit) {
+void Internal::bump_variable_score (ILit lit) {
   assert (opts.bump);
   int idx = vidx (lit);
   double old_score = score (idx);
@@ -116,7 +116,7 @@ void Internal::bump_variable_score (int lit) {
 
 // Important variables recently used in conflict analysis are 'bumped',
 
-void Internal::bump_variable (int lit) {
+void Internal::bump_variable (ILit lit) {
   if (use_scores ()) bump_variable_score (lit);
   else bump_queue (lit);
 }
@@ -146,7 +146,7 @@ struct analyze_bumped_rank {
   Internal * internal;
   analyze_bumped_rank (Internal * i) : internal (i) { }
   typedef uint64_t Type;
-  Type operator () (const int & a) const {
+  Type operator () (const ILit & a) const {
     return internal->bumped (a);
   }
 };
@@ -154,7 +154,7 @@ struct analyze_bumped_rank {
 struct analyze_bumped_smaller {
   Internal * internal;
   analyze_bumped_smaller (Internal * i) : internal (i) { }
-  bool operator () (const int & a, const int & b) const {
+  bool operator () (const ILit & a, const ILit & b) const {
     const auto s = analyze_bumped_rank (internal) (a);
     const auto t = analyze_bumped_rank (internal) (b);
     return s < t;
@@ -178,7 +178,6 @@ void Internal::bump_variables () {
     // the queue and seems to work best.  We also experimented with
     // focusing on variables of the last decision level, but results were
     // mixed.
-
     MSORT (opts.radixsortlim,
       analyzed.begin (), analyzed.end (),
       analyze_bumped_rank (this), analyze_bumped_smaller (this));
@@ -236,8 +235,8 @@ inline void Internal::bump_clause (Clause * c) {
 // called 'glue', or 'LBD').
 
 inline void
-Internal::analyze_literal (int lit, int & open) {
-  assert (lit);
+Internal::analyze_literal (ILit lit, int & open) {
+  assert (i_val(lit));
   Flags & f = flags (lit);
   if (f.seen) return;
   Var & v = var (lit);
@@ -258,11 +257,11 @@ Internal::analyze_literal (int lit, int & open) {
 }
 
 inline void
-Internal::analyze_reason (int lit, Clause * reason, int & open) {
+Internal::analyze_reason (ILit lit, Clause * reason, int & open) {
   assert (reason);
   bump_clause (reason);
   for (const auto & other : *reason)
-    if (other != lit)
+    if (i_val(other) != i_val(lit))
       analyze_literal (other, open);
 }
 
@@ -279,8 +278,8 @@ Internal::analyze_reason (int lit, Clause * reason, int & open) {
 // limit, by switching between 'LRB' and 'VSIDS' in an interval of initially
 // 30 million propagations, which then is increased geometrically by 10%.
 
-inline bool Internal::bump_also_reason_literal (int lit) {
-  assert (lit);
+inline bool Internal::bump_also_reason_literal (ILit lit) {
+  assert (i_val(lit));
   assert (val (lit) < 0);
   Flags & f = flags (lit);
   if (f.seen) return false;
@@ -294,8 +293,8 @@ inline bool Internal::bump_also_reason_literal (int lit) {
 
 // We experimented with deeper reason bumping without much success though.
 
-inline void Internal::bump_also_reason_literals (int lit, int limit) {
-  assert (lit);
+inline void Internal::bump_also_reason_literals (ILit lit, int limit) {
+  assert (i_val(lit));
   assert (limit > 0);
   const Var & v = var (lit);
   assert (val (lit));
@@ -303,10 +302,10 @@ inline void Internal::bump_also_reason_literals (int lit, int limit) {
   Clause * reason = v.reason;
   if (!reason) return;
   for (const auto & other : *reason) {
-    if (other == lit)  continue;
+    if (i_val(other) == i_val(lit))  continue;
     if (!bump_also_reason_literal (other)) continue;
     if (limit < 2) continue;
-    bump_also_reason_literals (-other, limit-1);
+    bump_also_reason_literals (i_neg(other), limit-1);
   }
 }
 
@@ -315,7 +314,7 @@ inline void Internal::bump_also_all_reason_literals () {
   assert (opts.bumpreasondepth > 0);
   LOG ("bumping reasons up to depth %d", opts.bumpreasondepth);
   for (const auto & lit : clause)
-      bump_also_reason_literals (-e_val(lit), opts.bumpreasondepth + stable);
+      bump_also_reason_literals (i_neg(lit), opts.bumpreasondepth + stable);
 }
 
 /*------------------------------------------------------------------------*/
@@ -351,7 +350,7 @@ struct analyze_trail_negative_rank {
   Internal * internal;
   analyze_trail_negative_rank (Internal * s) : internal (s) { }
   typedef uint64_t Type;
-  Type operator () (int a) {
+  Type operator () (ILit a) {
     Var & v = internal->var (a);
     uint64_t res = v.level;
     res <<= 32;
@@ -363,7 +362,7 @@ struct analyze_trail_negative_rank {
 struct analyze_trail_larger {
   Internal * internal;
   analyze_trail_larger (Internal * s) : internal (s) { }
-  bool operator () (const int & a, const int & b) const {
+  bool operator () (const ILit & a, const ILit & b) const {
     return
       analyze_trail_negative_rank (internal) (a) <
       analyze_trail_negative_rank (internal) (b);
@@ -378,7 +377,7 @@ struct analyze_trail_larger {
 //static vector<signed char> justified;
 //static vector<Clause*> old_reasons;
 
-void Internal::justify_lit (int lit) {
+void Internal::justify_lit (ILit lit) {
   Flags & f = flags (lit);
   if (f.justified) return;
   Var & v = var (lit);
@@ -390,9 +389,9 @@ void Internal::justify_lit (int lit) {
     if (c) {
       // LOG ("PROOF justify %d with %ld", lit, c->id);
       for (const_literal_iterator i = c->begin (); i != c->end (); i++) {
-        int other = *i;
-        if (other == lit) continue;
-        justify_lit (-other);
+        ILit other = *i;
+        if (i_val(other) == i_val(lit)) continue;
+        justify_lit (i_neg(other));
       }
       chain.push_back (c->id);
     } else {
@@ -414,7 +413,7 @@ void Internal::build_chain () {
   }
   for (Flags& f : ftab) f.justified = false;
   for (const_literal_iterator i = conflict->begin (); i != conflict->end (); i++)
-    justify_lit (-*i);
+      justify_lit (i_neg(*i));
   chain.push_back (conflict->id);
   for (unsigned i = 0; i < clause.size(); i++) {
     var (clause[i]).reason = old_reasons[i];
@@ -481,7 +480,7 @@ Clause * Internal::new_driving_clause (const int glue, int & jump) {
 // (forcing 'forced') if the number 'count' of literals in conflict assigned
 // at the conflict level is exactly one.
 
-inline int Internal::find_conflict_level (int & forced) {
+inline int Internal::find_conflict_level (ILit & forced) {
 
   assert (conflict);
   assert (opts.chrono);
@@ -506,20 +505,20 @@ inline int Internal::find_conflict_level (int & forced) {
   LOG ("%d literals on actual conflict level %d", count, res);
 
   const int size = conflict->size;
-  int * lits = conflict->literals;
+  ILit * lits = conflict->literals;
 
   // Move the two highest level literals to the front.
   //
   for (int i = 0; i < 2; i++) {
 
-    const int lit = lits[i];
+    const ILit lit = lits[i];
 
     int highest_position = i;
-    int highest_literal = lit;
+    ILit highest_literal = lit;
     int highest_level = var (highest_literal).level;
 
     for (int j = i + 1; j < size; j++) {
-      const int other = lits[j];
+      const ILit other = lits[j];
       const int tmp = var (other).level;
       if (highest_level >= tmp) continue;
       highest_literal = other;
@@ -587,7 +586,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
 
     if (use_scores ()) {
       for (size_t i = control[jump + 1].trail; i < trail.size (); i++) {
-        const int idx = abs (trail[i]);
+        const int idx = abs (i_val(trail[i]));
         if (best_idx && !score_smaller (this) (best_idx, idx)) continue;
         best_idx = idx;
         best_pos = i;
@@ -595,7 +594,7 @@ inline int Internal::determine_actual_backtrack_level (int jump) {
       LOG ("best variable score %g", score (best_idx));
     } else {
       for (size_t i = control[jump + 1].trail; i < trail.size (); i++) {
-        const int idx = abs (trail[i]);
+        const int idx = abs (i_val(trail[i]));
         if (best_idx && bumped (best_idx) >= bumped (idx)) continue;
         best_idx = idx;
         best_pos = i;
@@ -690,7 +689,7 @@ void Internal::analyze () {
 
   if (opts.chrono) {
 
-    int forced;
+    ILit forced(0);
 
     const int conflict_level = find_conflict_level (forced);
 
@@ -703,9 +702,9 @@ void Internal::analyze () {
     // that the pseudo code in the paper only backtracks while we eagerly
     // assign the single literal on the highest decision level.
 
-    if (forced) {
+    if (i_val(forced)) {
 
-      assert (forced);
+      assert (i_val(forced));
       assert (conflict_level > 0);
       LOG ("single highest level literal %d", forced);
 
@@ -716,7 +715,7 @@ void Internal::analyze () {
       //
       backtrack (conflict_level - 1);
 
-      LOG ("forcing %d", forced);
+      LOG ("forcing %d", i_val(forced));
       search_assign_driving (forced, conflict);
 
       conflict = 0;
@@ -770,23 +769,23 @@ void Internal::analyze () {
 
   int i = trail.size ();        // Start at end-of-trail.
   int open = 0;                 // Seen but not processed on this level.
-  int uip = 0;                  // The first UIP literal.
+  ILit uip = 0;                 // The first UIP literal.
 
   for (;;) {
     analyze_reason (uip, reason, open);
-    uip = 0;
-    while (!uip) {
+    uip = ILit(0);
+    while (!i_val(uip)) {
       assert (i > 0);
-      const int lit = trail[--i];
+      const ILit lit = trail[--i];
       if (!flags (lit).seen) continue;
       if (var (lit).level == level) uip = lit;
     }
     if (!--open) break;
     reason = var (uip).reason;
-    LOG (reason, "analyzing %d reason", uip);
+    LOG (reason, "analyzing %d reason", i_val(uip));
   }
-  LOG ("first UIP %d", uip);
-  clause.push_back (-uip);
+  LOG ("first UIP %d", i_val(uip));
+  clause.push_back (i_neg(uip));
 
   // Update glue and learned (1st UIP literals) statistics.
   //
@@ -837,7 +836,7 @@ void Internal::analyze () {
   UPDATE_AVERAGE (averages.current.level, new_level);
   backtrack (new_level);
 
-  if (uip) search_assign_driving (-uip, driving_clause);
+  if (i_val(uip)) search_assign_driving (i_neg(uip), driving_clause);
   else learn_empty_clause ();
 
   if (stable) reluctant.tick (); // Reluctant has its own 'conflict' counter.

@@ -29,7 +29,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
   assert (!level);
   assert (watching ());
 
-  vector<int> stack;    // To save marked literals and unmark them later.
+  vector<ILit> stack;    // To save marked literals and unmark them later.
 
   int64_t subsumed = 0;
   int64_t units = 0;
@@ -56,7 +56,7 @@ void Internal::mark_duplicated_binary_clauses_as_garbage () {
       for (i = j; !unit && i != end; i++) {
         Watch w = *j++ = *i;
         if (!w.binary ()) continue;
-        int other = w.blit;
+        ILit other = w.blit;
         const int tmp = marked (other);
         Clause * c = w.clause;
 

@@ -14,7 +14,7 @@ namespace CaDiCaL {
 // minimization if only one literal was seen on the level and a new idea of
 // also aborting if the earliest seen literal was assigned afterwards.
 
-bool Internal::minimize_literal (int lit, int depth) {
+bool Internal::minimize_literal (ILit lit, int depth) {
   LOG("attempt to minimize lit %d at depth %d", lit, depth);
   assert(val(lit) > 0);
   Flags & f = flags (lit);
@@ -30,7 +30,7 @@ bool Internal::minimize_literal (int lit, int depth) {
   const const_literal_iterator end = v.reason->end ();
   const_literal_iterator i;
   for (i = v.reason->begin (); res && i != end; i++) {
-    const int other = *i;
+    const ILit other = *i;
     if (other == lit) continue;
     res = minimize_literal (-other, depth + 1);
   }
@@ -48,7 +48,7 @@ struct minimize_trail_positive_rank {
   Internal * internal;
   minimize_trail_positive_rank (Internal * s) : internal (s) { }
   typedef int Type;
-  Type operator () (const int & a) const {
+  Type operator () (const ILit & a) const {
     assert (internal->val (a));
     return internal->var (a).trail;
   }
@@ -57,7 +57,7 @@ struct minimize_trail_positive_rank {
 struct minimize_trail_smaller {
   Internal * internal;
   minimize_trail_smaller (Internal * s) : internal (s) { }
-  bool operator () (const int & a, const int & b) const {
+  bool operator () (const ILit & a, const ILit & b) const {
     return internal->var (a).trail < internal->var (b).trail;
   }
 };

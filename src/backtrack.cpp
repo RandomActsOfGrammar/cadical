@@ -7,7 +7,7 @@ namespace CaDiCaL {
 // local to this file).  It turns out that 'unassign' does not need a
 // specialization for 'probe' nor 'vivify' and thus it is shared.
 
-inline void Internal::unassign (int lit) {
+inline void Internal::unassign (ILit lit) {
   assert (val (lit) > 0);
   const int idx = vidx (lit);
   vals[idx] = 0;
@@ -88,7 +88,7 @@ void Internal::backtrack (int new_level) {
   int reassigned = 0, unassigned = 0;
 
   while (i < end_of_trail) {
-    int lit = trail[i++];
+    ILit lit = trail[i++];
     Var & v = var (lit);
     if (v.level > new_level) {
       unassign (lit);

@@ -69,19 +69,19 @@ bool Internal::conditioning () {
 // assigned (fixed) literals, to avoid checking the decision level of
 // literals during the procedure.
 
-void Internal::condition_unassign (int lit) {
-  LOG ("condition unassign %d", lit);
+void Internal::condition_unassign (ILit lit) {
+  LOG ("condition unassign %d", i_val(lit));
   assert (val (lit) > 0);
-  vals[lit] = vals[-lit] = 0;
+  vals[i_val(lit)] = vals[-i_val(lit)] = 0;
 }
 
-void Internal::condition_assign (int lit) {
-  LOG ("condition assign %d", lit);
+void Internal::condition_assign (ILit lit) {
+  LOG ("condition assign %d", i_val(lit));
   assert (!val (lit));
-  vals[lit] = 1;
-  vals[-lit] = -1;
+  vals[i_val(lit)] = 1;
+  vals[-i_val(lit)] = -1;
   assert (val (lit) > 0);
-  assert (val (-lit) < 0);
+  assert (val (i_neg(lit)) < 0);
 }
 
 /*------------------------------------------------------------------------*/
@@ -89,15 +89,15 @@ void Internal::condition_assign (int lit) {
 // The current partition into conditional part and autarky part during
 // refinement is represented through a conditional bit in 'marks'.
 
-inline bool Internal::is_conditional_literal (int lit) const {
+inline bool Internal::is_conditional_literal (ILit lit) const {
   return val (lit) > 0 && getbit (lit, 0);
 }
 
-inline bool Internal::is_autarky_literal (int lit) const {
+inline bool Internal::is_autarky_literal (ILit lit) const {
   return val (lit) > 0 && !getbit (lit, 0);
 }
 
-inline void Internal::mark_as_conditional_literal (int lit) {
+inline void Internal::mark_as_conditional_literal (ILit lit) {
   LOG ("marking %d as conditional literal", lit);
   assert (val (lit) > 0);
   setbit (lit, 0);
@@ -105,7 +105,7 @@ inline void Internal::mark_as_conditional_literal (int lit) {
   assert (!is_autarky_literal (lit));
 }
 
-inline void Internal::unmark_as_conditional_literal (int lit) {
+inline void Internal::unmark_as_conditional_literal (ILit lit) {
   LOG ("unmarking %d as conditional literal", lit);
   assert (is_conditional_literal (lit));
   unsetbit (lit, 0);
@@ -118,18 +118,18 @@ inline void Internal::unmark_as_conditional_literal (int lit) {
 // We need a signed mark here, since we have to distinguish positive and
 // negative occurrences of literals in the candidate clause.
 
-inline bool Internal::is_in_candidate_clause (int lit) const {
+inline bool Internal::is_in_candidate_clause (ILit lit) const {
   return marked67 (lit) > 0;
 }
 
-inline void Internal::mark_in_candidate_clause (int lit) {
+inline void Internal::mark_in_candidate_clause (ILit lit) {
   LOG ("marking %d as literal of the candidate clause", lit);
   mark67 (lit);
   assert (is_in_candidate_clause (lit));
   assert (!is_in_candidate_clause (-lit));
 }
 
-inline void Internal::unmark_in_candidate_clause (int lit) {
+inline void Internal::unmark_in_candidate_clause (ILit lit) {
   LOG ("unmarking %d as literal of the candidate clause", lit);
   assert (is_in_candidate_clause (lit));
   unmark67 (lit);
@@ -242,7 +242,7 @@ long Internal::condition_round (long delta) {
   // literal has to be assigned true, we only need a single bit for both the
   // literal as well as its negation (it does not have to be 'signed').
   //
-  vector<int> conditional;
+  vector<ILit> conditional;
 
   vector<Clause *> candidates;  // Gather candidate clauses.
   size_t watched = 0;           // Number of watched clauses.
@@ -276,7 +276,7 @@ long Internal::condition_round (long delta) {
     //
     int positive = 0;           // Number true literals.
     int negative = 0;           // Number false literals.
-    int watch = 0;              // True Literal to watch.
+    ILit watch = 0;             // True Literal to watch.
     //
     size_t minsize = size_max;  // Number of occurrences of 'watch'.
     //
@@ -288,7 +288,7 @@ long Internal::condition_round (long delta) {
          !satisfied && l != c->end ();
          l++)
     {
-      const int lit = *l;
+      const ILit lit = *l;
       const signed char tmp = val (lit);
       if (tmp && !var (lit).level) satisfied = (tmp > 0);
       else if (tmp < 0) negative++;
@@ -350,14 +350,14 @@ long Internal::condition_round (long delta) {
            l != c->end ();
            l++)
       {
-        const int lit = *l;
+        const ILit lit = *l;
         signed char tmp = val (lit);
         if (!tmp) continue;
         assert (tmp < 0);
         if (!var (lit).level) continue; // Not unassigned yet!
-        if (is_conditional_literal (-lit)) continue;
-        mark_as_conditional_literal (-lit);
-        conditional.push_back (-lit);
+        if (is_conditional_literal (i_neg(lit))) continue;
+        mark_as_conditional_literal (i_neg(lit));
+        conditional.push_back (i_neg(lit));
         new_conditionals++;
       }
       if (new_conditionals > 0)
@@ -413,7 +413,7 @@ long Internal::condition_round (long delta) {
 
   // Stack to save temporarily unassigned (conditional) literals.
   //
-  vector<int> unassigned;
+  vector<ILit> unassigned;
 
   // Make sure to focus on clauses not tried before by marking clauses which
   // have been checked before using the 'conditioned' bit of clauses. If all
@@ -487,7 +487,7 @@ long Internal::condition_round (long delta) {
     // is reached and we still have an autarky literal left the watched one
     // is reported as witness for this clause being globally blocked.
     //
-    int watched_autarky_literal = 0;
+    ILit watched_autarky_literal(0);
 
     // First mark all true literals in the candidate clause and find an
     // autarky literal which witnesses that this clause has still a chance
@@ -495,9 +495,9 @@ long Internal::condition_round (long delta) {
     //
     for (const_literal_iterator l = c->begin (); l != c->end (); l++)
     {
-      const int lit = *l;
+      const ILit lit = *l;
       mark_in_candidate_clause (lit);
-      if (watched_autarky_literal) continue;
+      if (i_val(watched_autarky_literal)) continue;
       if (!is_autarky_literal (lit)) continue;
       watched_autarky_literal = lit;
 
@@ -505,7 +505,7 @@ long Internal::condition_round (long delta) {
       // Which might need to trigger watching additional clauses.
     }
 
-    if (!watched_autarky_literal) {
+    if (!i_val(watched_autarky_literal)) {
       LOG ("no initial autarky literal found");
       for (const_literal_iterator l = c->begin (); l != c->end (); l++)
         unmark_in_candidate_clause (*l);
@@ -514,7 +514,7 @@ long Internal::condition_round (long delta) {
 
     stats.condcands++;          // Only now ...
 
-    LOG ("watching first autarky literal %d", watched_autarky_literal);
+    LOG ("watching first autarky literal %d", i_val(watched_autarky_literal));
 
     // Save assignment sizes for statistics, logging and checking.
     //
@@ -528,17 +528,17 @@ long Internal::condition_round (long delta) {
     assert (unassigned.empty ());
     assert (conditional.size () == initial.conditional);
 
-    while (watched_autarky_literal &&
+    while (i_val(watched_autarky_literal) &&
            stats.condprops < limit &&
            next.conditional < conditional.size ()) {
 
       assert (next.unassigned == unassigned.size ());
 
-      const int conditional_lit = conditional[next.conditional++];
+      const ILit conditional_lit = conditional[next.conditional++];
       LOG ("processing next conditional %d", conditional_lit);
       assert (is_conditional_literal (conditional_lit));
 
-      if (is_in_candidate_clause (-conditional_lit)) {
+      if (is_in_candidate_clause (i_neg(conditional_lit))) {
         LOG ("conditional %d negated in candidate clause", conditional_lit);
         continue;
       }
@@ -555,11 +555,11 @@ long Internal::condition_round (long delta) {
       remain.conditional--;
       remain.assigned--;
 
-      while (watched_autarky_literal &&
+      while (i_val(watched_autarky_literal) &&
              stats.condprops < limit &&
              next.unassigned < unassigned.size ())
       {
-        const int unassigned_lit = unassigned[next.unassigned++];
+        const ILit unassigned_lit = unassigned[next.unassigned++];
         LOG ("processing next unassigned %d", unassigned_lit);
         assert (!val (unassigned_lit));
 
@@ -580,32 +580,32 @@ long Internal::condition_round (long delta) {
         //
         auto i = os.begin (), j = i;
         for (;
-             watched_autarky_literal && j != os.end ();
+             i_val(watched_autarky_literal) && j != os.end ();
              j++)
         {
           Clause * d = *i++ = *j;
 
-          int replacement = 0;  // New watched literal in 'd'.
-          int negative = 0;     // Negative autarky literals in 'd'.
+          ILit replacement = 0;  // New watched literal in 'd'.
+          ILit negative = 0;     // Negative autarky literals in 'd'.
 
           for (const_literal_iterator l = d->begin ();
                l != d->end ();
                l++)
           {
-            const int lit = *l;
+            const ILit lit = *l;
             const signed char tmp = val (lit);
             if (tmp > 0) replacement = lit;
-            if (tmp < 0 && is_autarky_literal (-lit)) negative++;
+            if (tmp < 0 && is_autarky_literal (i_neg(lit))) negative = ILit(i_val(negative) + 1);
           }
 
-          if (replacement) {
+          if (i_val(replacement)) {
             LOG ("found replacement %d for unassigned %d",
-              replacement, unassigned_lit);
-            LOG (d, "unwatching %d in", unassigned_lit);
+                 i_val(replacement), i_val(unassigned_lit));
+            LOG (d, "unwatching %d in", i_val(unassigned_lit));
             i--;                                            // Drop watch!
-            LOG (d, "watching %d in", replacement);
+            LOG (d, "watching %d in", i_val(replacement));
 
-            assert (replacement != unassigned_lit);
+            assert (i_val(replacement) != i_val(unassigned_lit));
             occs (replacement).push_back (d);
 
             continue;                 // ... with next watched clause 'd'.
@@ -615,49 +615,49 @@ long Internal::condition_round (long delta) {
 
           // Keep watching 'd' by 'unassigned_lit' if no replacement found.
 
-          if (!negative) {
+          if (!i_val(negative)) {
             LOG (d, "no negative autarky literals left in");
             continue; // ... with next watched clause 'd'.
           }
 
-          LOG (d, "found %d negative autarky literals in", negative);
+          LOG (d, "found %d negative autarky literals in", i_val(negative));
 
           for (const_literal_iterator l = d->begin ();
-               watched_autarky_literal && l != d->end ();
+               i_val(watched_autarky_literal) && l != d->end ();
                l++)
           {
-            const int lit = *l;
-            if (!is_autarky_literal (-lit)) continue;
-            mark_as_conditional_literal (-lit);
-            conditional.push_back (-lit);
+            const ILit lit = *l;
+            if (!is_autarky_literal (i_neg(lit))) continue;
+            mark_as_conditional_literal (i_neg(lit));
+            conditional.push_back (i_neg(lit));
 
             remain.conditional++;
             assert (remain.autarky > 0);
             remain.autarky--;
 
-            if (-lit != watched_autarky_literal) continue;
+            if (-i_val(lit) != i_val(watched_autarky_literal)) continue;
 
-            LOG ("need to replace autarky literal %d in candidate", -lit);
+            LOG ("need to replace autarky literal %d in candidate", -i_val(lit));
             replacement = 0;
 
             // TODO save starting point because we only move it forward?
 
             for (const_literal_iterator k = c->begin ();
-                 !replacement && k != c->end ();
+                 !i_val(replacement) && k != c->end ();
                  k++)
             {
-              const int other = *k;
+              const ILit other = *k;
               if (is_autarky_literal (other)) replacement = other;
             }
             watched_autarky_literal = replacement;
 
-            if (replacement) {
+            if (i_val(replacement)) {
               LOG (c, "watching autarky %d instead %d in candidate",
-                replacement, watched_autarky_literal);
+                   i_val(replacement), i_val(watched_autarky_literal));
               watched_autarky_literal = replacement;
             } else {
               LOG ("failed to find an autarky replacement");
-              watched_autarky_literal = 0; // Breaks out of 4 loops!!!!!
+              watched_autarky_literal = ILit(0); // Breaks out of 4 loops!!!!!
             }
           } // End of loop of turning autarky literals into conditionals.
         } // End of loop of all watched clauses of an unassigned literal.
@@ -721,7 +721,7 @@ long Internal::condition_round (long delta) {
     // we did not abort the loop too early because the propagation
     // limit was hit.
     //
-    if (watched_autarky_literal && stats.condprops < limit)
+    if (i_val(watched_autarky_literal) && stats.condprops < limit)
     {
       assert (is_autarky_literal (watched_autarky_literal));
       assert (is_in_candidate_clause (watched_autarky_literal));
@@ -776,7 +776,7 @@ long Internal::condition_round (long delta) {
     if (!unassigned.empty ()) {
       LOG ("reassigning %zd literals", unassigned.size ());
       while (!unassigned.empty ()) {
-        const int lit = unassigned.back ();
+        const ILit lit = unassigned.back ();
         unassigned.pop_back ();
         condition_assign (lit);
       }
@@ -789,7 +789,7 @@ long Internal::condition_round (long delta) {
       LOG ("flushing %zd autarky literals from conditional stack",
         conditional.size () - initial.conditional);
       while (initial.conditional < conditional.size ()) {
-        const int lit = conditional.back ();
+        const ILit lit = conditional.back ();
         conditional.pop_back ();
         unmark_as_conditional_literal (lit);
       }
@@ -819,7 +819,7 @@ long Internal::condition_round (long delta) {
   //
   int additionally_unassigned = 0;
   while (trail.size () > initial_trail_level) {
-    int lit = trail.back ();
+    ILit lit = trail.back ();
     trail.pop_back ();
     condition_unassign (lit);
     additionally_unassigned++;
@@ -839,7 +839,7 @@ long Internal::condition_round (long delta) {
   //
   LOG ("reassigning previously assigned variables");
   for (size_t i = 0; i < initial_trail_level; i++) {
-    const int lit = trail[i];
+    const ILit lit = trail[i];
     const signed char tmp = val (lit);
     assert (tmp >= 0);
     if (!tmp) condition_assign (lit);

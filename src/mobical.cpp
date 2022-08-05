@@ -628,7 +628,7 @@ struct SimplifyCall : public Call {
 
 struct LookaheadCall : public Call {
   LookaheadCall (int r = 0) : Call (LOOKAHEAD, 0, r) { }
-  void execute (Solver * & s) { res = s->lookahead (); }
+  void execute (Solver * & s) { res = e_val(s->lookahead ()); }
   void print (ostream & o) { o << "lookahead " << res << endl; }
   Call * copy () { return new LookaheadCall (res); }
   const char * keyword () { return "lookahead"; }

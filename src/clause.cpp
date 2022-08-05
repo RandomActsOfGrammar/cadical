@@ -34,11 +34,11 @@ void Internal::unmark_clause () {
 // Note that 'mark_removed (int lit)' will also mark the blocking flag of
 // '-lit' to trigger reconsidering blocking clauses on '-lit'.
 
-void Internal::mark_removed (Clause * c, int except) {
+void Internal::mark_removed (Clause * c, ILit except) {
   LOG (c, "marking removed");
   assert (!c->redundant);
   for (const auto & lit : *c)
-    if (lit != except)
+    if (i_val(lit) != i_val(except))
       mark_removed (lit);
 }
 
@@ -51,7 +51,7 @@ void Internal::mark_removed (Clause * c, int except) {
 // 'ternary' preprocessing reconsider clauses on an added literal as well as
 // trying to block clauses on it.
 
-inline void Internal::mark_added (int lit, int size, bool redundant) {
+inline void Internal::mark_added (ILit lit, int size, bool redundant) {
   mark_subsume (lit);
   if (size == 3)
     mark_ternary (lit);
@@ -288,7 +288,7 @@ void Internal::mark_garbage (Clause * c) {
 // Almost the same function as 'search_assign' except that we do not pretend
 // to learn a new unit clause (which was confusing in log files).
 
-void Internal::assign_original_unit (clause_id_t id, int lit) {
+void Internal::assign_original_unit (clause_id_t id, ILit lit) {
   assert (!level);
   const int idx = vidx (lit);
   assert (!vals[idx]);
@@ -299,11 +299,11 @@ void Internal::assign_original_unit (clause_id_t id, int lit) {
   v.reason = 0;
   v.unit_id = id;
   external->set_unit_id (i2e[idx], id);
-  const signed char tmp = sign (lit);
+  const signed char tmp = sign (i_val(lit));
   vals[idx] = tmp;
   vals[-idx] = -tmp;
   assert (val (lit) > 0);
-  assert (val (-lit) < 0);
+  assert (val (i_neg(lit)) < 0);
   trail.push_back (lit);
   LOG ("original unit assign %d", lit);
   mark_fixed (lit);

@@ -44,7 +44,8 @@ void Internal::remove_falsified_literals (Clause * c) {
   if (proof) proof->flush_clause (c);
   literal_iterator j = c->begin ();
   for (i = j; i != end; i++) {
-    const int lit = *j++ = *i, tmp = fixed (lit);
+    const ILit lit = *j++ = *i;
+    const int tmp = fixed (lit);
     assert (tmp <= 0);
     if (tmp >= 0) continue;
     LOG ("flushing %d", lit);
@@ -136,7 +137,7 @@ void Internal::unprotect_reasons () {
 // result is the number of remaining clauses, which in this context means
 // the number of non-garbage clauses.
 
-size_t Internal::flush_occs (int lit) {
+size_t Internal::flush_occs (ILit lit) {
   Occs & os = occs (lit);
   const const_occs_iterator end = os.end ();
   occs_iterator j = os.begin ();
@@ -161,7 +162,7 @@ size_t Internal::flush_occs (int lit) {
 // hidden in 'Clause.collect', which for the root level context of
 // preprocessing is actually redundant.
 
-inline void Internal::flush_watches (int lit, Watches & saved) {
+inline void Internal::flush_watches (ILit lit, Watches & saved) {
   assert (saved.empty ());
   Watches & ws = watches (lit);
   const const_watch_iterator end = ws.end ();
@@ -173,7 +174,7 @@ inline void Internal::flush_watches (int lit, Watches & saved) {
     if (c->collect ()) continue;
     if (c->moved) c = w.clause = c->copy;
     w.size = c->size;
-    const int new_blit_pos = (c->literals[0] == lit);
+    const int new_blit_pos = (i_val(c->literals[0]) == i_val(lit));
     assert (c->literals[!new_blit_pos] == lit);        /*FW1*/
     w.blit = c->literals[new_blit_pos];
     if (w.binary ()) *j++ = w;

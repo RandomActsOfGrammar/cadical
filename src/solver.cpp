@@ -521,30 +521,30 @@ bool Solver::configure (const char * name) {
 
 /*===== IPASIR BEGIN =====================================================*/
 
-void Solver::add (int lit) {
-  TRACE ("add", lit);
+void Solver::add (ELit lit) {
+  TRACE ("add", e_val(lit));
   REQUIRE_VALID_STATE ();
-  if (lit) REQUIRE_VALID_LIT (lit);
+  if (e_val(lit)) REQUIRE_VALID_LIT (e_val(lit));
   transition_to_unknown_state ();
   external->add (lit);
-  if (lit) STATE (ADDING);
+  if (e_val(lit)) STATE (ADDING);
   else     STATE (UNKNOWN);
   LOG_API_CALL_END ("add", lit);
 }
 
-void Solver::assume (int lit) {
-  TRACE ("assume", lit);
+void Solver::assume (ELit lit) {
+  TRACE ("assume", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   transition_to_unknown_state ();
   external->assume (lit);
-  LOG_API_CALL_END ("assume", lit);
+  LOG_API_CALL_END ("assume", e_val(lit));
 }
 
-int Solver::lookahead () {
+ELit Solver::lookahead () {
   TRACE ("lookahead");
   REQUIRE_VALID_OR_SOLVING_STATE ();
-  int lit = external->lookahead ();
+  ELit lit = external->lookahead ();
   TRACE ("lookahead");
   return lit;
 }
@@ -623,51 +623,51 @@ int Solver::simplify (int rounds) {
 
 /*------------------------------------------------------------------------*/
 
-int Solver::val (int lit) {
-  TRACE ("val", lit);
+int Solver::val (ELit lit) {
+  TRACE ("val", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   REQUIRE (state () == SATISFIED,
     "can only get value in satisfied state");
   int res = external->ival (lit);
-  LOG_API_CALL_RETURNS ("val", lit, res);
+  LOG_API_CALL_RETURNS ("val", e_val(lit), res);
   return res;
 }
 
-bool Solver::failed (int lit) {
-  TRACE ("failed", lit);
+bool Solver::failed (ELit lit) {
+  TRACE ("failed", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   REQUIRE (state () == UNSATISFIED,
     "can only get failed assumptions in unsatisfied state");
   bool res = external->failed (lit);
-  LOG_API_CALL_RETURNS ("failed", lit, res);
+  LOG_API_CALL_RETURNS ("failed", e_val(lit), res);
   return res;
 }
 
-int Solver::fixed (int lit) const {
-  TRACE ("fixed", lit);
+int Solver::fixed (ELit lit) const {
+  TRACE ("fixed", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   int res = external->fixed (lit);
-  LOG_API_CALL_RETURNS ("fixed", lit, res);
+  LOG_API_CALL_RETURNS ("fixed", e_val(lit), res);
   return res;
 }
 
-void Solver::phase (int lit) {
-  TRACE ("phase", lit);
+void Solver::phase (ELit lit) {
+  TRACE ("phase", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   external->phase (lit);
-  LOG_API_CALL_END ("phase", lit);
+  LOG_API_CALL_END ("phase", e_val(lit));
 }
 
-void Solver::unphase (int lit) {
-  TRACE ("unphase", lit);
+void Solver::unphase (ELit lit) {
+  TRACE ("unphase", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   external->unphase (lit);
-  LOG_API_CALL_END ("unphase", lit);
+  LOG_API_CALL_END ("unphase", e_val(lit));
 }
 
 /*------------------------------------------------------------------------*/
@@ -788,30 +788,30 @@ int64_t Solver::irredundant () const {
 
 /*------------------------------------------------------------------------*/
 
-void Solver::freeze (int lit) {
-  TRACE ("freeze", lit);
+void Solver::freeze (ELit lit) {
+  TRACE ("freeze", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   external->freeze (lit);
-  LOG_API_CALL_END ("freeze", lit);
+  LOG_API_CALL_END ("freeze", e_val(lit));
 }
 
-void Solver::melt (int lit) {
-  TRACE ("melt", lit);
+void Solver::melt (ELit lit) {
+  TRACE ("melt", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   REQUIRE (external->frozen (lit),
-    "can not melt completely melted literal '%d'", lit);
+           "can not melt completely melted literal '%d'", e_val(lit));
   external->melt (lit);
-  LOG_API_CALL_END ("melt", lit);
+  LOG_API_CALL_END ("melt", e_val(lit));
 }
 
-bool Solver::frozen (int lit) const {
-  TRACE ("frozen", lit);
+bool Solver::frozen (ELit lit) const {
+  TRACE ("frozen", e_val(lit));
   REQUIRE_VALID_STATE ();
-  REQUIRE_VALID_LIT (lit);
+  REQUIRE_VALID_LIT (e_val(lit));
   bool res = external->frozen (lit);
-  LOG_API_CALL_RETURNS ("frozen", lit, res);
+  LOG_API_CALL_RETURNS ("frozen", e_val(lit), res);
   return res;
 }
 
@@ -1088,10 +1088,19 @@ public:
   int vars;
   int64_t clauses;
   ClauseCounter () : vars (0), clauses (0) { }
-  bool clause (const vector<int> & c) {
+  bool clause (const vector<ILit> & c) {
     for (const auto & lit : c) {
       assert (lit != INT_MIN);
-      int idx = abs (lit);
+      int idx = abs (i_val(lit));
+      if (idx > vars) vars = idx;
+    }
+    clauses++;
+    return true;
+  }
+  bool clause (const vector<ELit> & c) {
+    for (const auto & lit : c) {
+      assert (lit != INT_MIN);
+      int idx = abs (e_val(lit));
       if (idx > vars) vars = idx;
     }
     clauses++;
@@ -1103,9 +1112,16 @@ class ClauseWriter : public ClauseIterator {
   File * file;
 public:
   ClauseWriter (File * f) : file (f) { }
-  bool clause (const vector<int> & c) {
+  bool clause (const vector<ILit> & c) {
     for (const auto & lit : c) {
-      if (!file->put (lit)) return false;
+      if (!file->put (i_val(lit))) return false;
+      if (!file->put (' ')) return false;
+    }
+    return file->put ("0\n");
+  }
+  bool clause (const vector<ELit> & c) {
+    for (const auto & lit : c) {
+      if (!file->put (e_val(lit))) return false;
       if (!file->put (' ')) return false;
     }
     return file->put ("0\n");
@@ -1211,9 +1227,15 @@ struct ClauseCopier : public ClauseIterator {
   Solver & dst;
 public:
   ClauseCopier (Solver & d) : dst (d) { }
-  bool clause (const vector<int> & c) {
+  bool clause (const vector<ILit> & c) {
     for (const auto & lit : c)
-      dst.add (lit);
+        dst.add (i_val(lit));
+    dst.add (0);
+    return true;
+  }
+  bool clause (const vector<ELit> & c) {
+    for (const auto & lit : c)
+      dst.add (e_val(lit));
     dst.add (0);
     return true;
   }

@@ -5,9 +5,9 @@ namespace CaDiCaL {
 // Failed literal handling as pioneered by MiniSAT.  This first function
 // adds an assumption literal onto the assumption stack.
 
-void Internal::assume (int lit) {
+void Internal::assume (ILit lit) {
   Flags & f = flags (lit);
-  const unsigned char bit = bign (lit);
+  const unsigned char bit = bign (i_val(lit));
   if (f.assumed & bit) {
     LOG ("ignoring already assumed %d", lit);
     return;
@@ -31,7 +31,7 @@ void Internal::failing () {
   assert (analyzed.empty ());
   assert (clause.empty ());
 
-  int first = 0;
+  ILit first = 0;
 
   // Try to find two clashing assumptions.
   //
@@ -41,20 +41,20 @@ void Internal::failing () {
     break;
   }
 
-  if (first) {
+  if (i_val(first)) {
 
     // TODO: if 'first' is on the root-level, then, as below, we probably
     // want an empty core.
 
     clause.push_back (first);
-    clause.push_back (-first);
+    clause.push_back (i_neg(first));
 
     Flags & f = flags (first);
 
-    unsigned bit = bign (first);
+    unsigned bit = bign (i_val(first));
     assert (!(f.failed & bit));
     f.failed |= bit;
-    bit = bign (-first);
+    bit = bign (i_val(-first));
     f.failed |= bit;
 
   } else {
@@ -64,7 +64,7 @@ void Internal::failing () {
     for (auto & lit : assumptions) {
       const signed char tmp = val (lit);
       if (tmp >= 0) continue;
-      if (!first || var (first).level > var (lit).level)
+      if (!i_val(first) || var (first).level > var (lit).level)
         first = lit;
     }
 
@@ -78,10 +78,10 @@ void Internal::failing () {
       // and not mark 'first' as failed (similarly above).
 
       LOG ("failed assumption %d", first);
-      clause.push_back (-first);
+      clause.push_back (i_neg(first));
 
       Flags & f = flags (first);
-      const unsigned bit = bign (first);
+      const unsigned bit = bign (i_val(first));
       assert (!(f.failed & bit));
       f.failed |= bit;
 
@@ -94,19 +94,19 @@ void Internal::failing () {
       {
         LOG ("failed assumption %d", first);
         Flags & f = flags (first);
-        const unsigned bit = bign (first);
+        const unsigned bit = bign (i_val(first));
         assert (!(f.failed & bit));
         f.failed |= bit;
         f.seen = true;
       }
 
       analyzed.push_back (first);
-      clause.push_back (-first);
+      clause.push_back (i_neg(first));
 
       size_t next = 0;
 
       while (next < analyzed.size ()) {
-        const int lit = analyzed[next++];
+        const ILit lit = analyzed[next++];
 #ifndef NDEBUG
         if (first == lit) assert (val (lit) < 0);
         else assert (val (lit) > 0);
@@ -122,14 +122,14 @@ void Internal::failing () {
             if (f.seen) continue;
             f.seen = true;
             assert (val (other) < 0);
-            analyzed.push_back (-other);
+            analyzed.push_back (i_neg(other));
           }
         } else {
           assert (assumed (lit));
           LOG ("failed assumption %d", lit);
-          clause.push_back (-lit);
+          clause.push_back (i_neg(lit));
           Flags & f = flags (lit);
-          const unsigned bit = bign (lit);
+          const unsigned bit = bign (i_val(lit));
           assert (!(f.failed & bit));
           f.failed |= bit;
         }
@@ -167,7 +167,7 @@ void Internal::failing () {
 void Internal::reset_assumptions () {
   for (const auto & lit : assumptions) {
     Flags & f = flags (lit);
-    const unsigned char bit = bign (lit);
+    const unsigned char bit = bign (i_val(lit));
     f.assumed &= ~bit;
     f.failed &= ~bit;
     melt (lit);

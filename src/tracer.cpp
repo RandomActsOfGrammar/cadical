@@ -56,7 +56,7 @@ inline void Tracer::put_binary_unsigned (int64_t n) {
 
 /*------------------------------------------------------------------------*/
 
-void Tracer::add_original_clause (clause_id_t id, const vector<int> & clause) {
+void Tracer::add_original_clause (clause_id_t id, const vector<ELit> & clause) {
   if (!lrat) return;
   if (file->closed ()) return;
   LOG ("TRACER tracing addition of original clause");
@@ -67,13 +67,13 @@ void Tracer::add_original_clause (clause_id_t id, const vector<int> & clause) {
     else file->put (id), file->put ("  ");
   }
   for (const auto & external_lit : clause)
-    if (binary) put_binary_lit (external_lit);
-    else file->put (external_lit), file->put (' ');
+    if (binary) put_binary_lit (e_val(external_lit));
+    else file->put (e_val(external_lit)), file->put (' ');
   if (binary) put_binary_zero ();
   else file->put ("0\n");
 }
 
-void Tracer::add_derived_clause (clause_id_t id, const vector<int64_t> * chain, const vector<int> & clause, bool is_imported) {
+void Tracer::add_derived_clause (clause_id_t id, const vector<int64_t> * chain, const vector<ELit> & clause, bool is_imported) {
   if (is_imported) { return; } //don't put imported clauses in proof file
   if (file->closed ()) return;
   LOG ("TRACER tracing addition of derived clause");
@@ -84,8 +84,8 @@ void Tracer::add_derived_clause (clause_id_t id, const vector<int64_t> * chain, 
     else file->put (id), file->put ("  ");
   }
   for (const auto & external_lit : clause)
-    if (binary) put_binary_lit (external_lit);
-    else file->put (external_lit), file->put (' ');
+    if (binary) put_binary_lit (e_val(external_lit));
+    else file->put (e_val(external_lit)), file->put (' ');
   if (lrat && chain) {
     if (binary) put_binary_zero (), file->put ('l');
     else file->put ("0  l ");
@@ -102,7 +102,7 @@ void Tracer::add_derived_clause (clause_id_t id, const vector<int64_t> * chain, 
   }
 }
 
-void Tracer::delete_clause (clause_id_t id, const vector<int> & clause) {
+void Tracer::delete_clause (clause_id_t id, const vector<ELit> & clause) {
   if (file->closed ()) return;
   LOG ("TRACER tracing deletion of clause");
   if (binary) file->put ('d');
@@ -112,14 +112,14 @@ void Tracer::delete_clause (clause_id_t id, const vector<int> & clause) {
     else file->put (id), file->put ("  ");
   }
   for (const auto & external_lit : clause)
-    if (binary) put_binary_lit (external_lit);
-    else file->put (external_lit), file->put (' ');
+    if (binary) put_binary_lit (e_val(external_lit));
+    else file->put (e_val(external_lit)), file->put (' ');
   if (binary) put_binary_zero ();
   else file->put ("0\n");
   deleted++;
 }
 
-void Tracer::finalize_clause (clause_id_t id, const vector<int> & clause) {
+void Tracer::finalize_clause (clause_id_t id, const vector<ELit> & clause) {
   if (!lrat) return;
   if (file->closed ()) return;
   LOG ("TRACER tracing finalized clause");
@@ -128,8 +128,8 @@ void Tracer::finalize_clause (clause_id_t id, const vector<int> & clause) {
   if (binary) put_binary_unsigned (id);
   else file->put (id), file->put ("  ");
   for (const auto & external_lit : clause)
-    if (binary) put_binary_lit (external_lit);
-    else file->put (external_lit), file->put (' ');
+    if (binary) put_binary_lit (e_val(external_lit));
+    else file->put (e_val(external_lit)), file->put (' ');
   if (binary) put_binary_zero ();
   else file->put ("0\n");
 }

@@ -66,7 +66,7 @@ void Internal::transred () {
   // This working stack plays the same role as the 'trail' during standard
   // propagation.
   //
-  vector<int> work;
+  vector<ILit> work;
 
   int64_t propagations = 0, units = 0, removed = 0;
 
@@ -97,11 +97,11 @@ void Internal::transred () {
     // there is a path from '-dst' to '-src', we can do the reverse search
     // if the number of watches of '-dst' is larger than those of 'src'.
     //
-    int src = -c->literals[0];
-    int dst = c->literals[1];
+    ILit src = -c->literals[0];
+    ILit dst = c->literals[1];
     if (val (src) || val (dst)) continue;
     if (watches (-src).size () < watches (dst).size ()) {
-      int tmp = dst;
+      ILit tmp = dst;
       dst = -src; src = -tmp;
     }
 
@@ -124,7 +124,7 @@ void Internal::transred () {
     size_t j = 0;                       // 'propagated' in BFS
 
     while (!transitive && !failed && j < work.size ()) {
-      const int lit = work[j++];
+      const ILit lit = work[j++];
       assert (marked (lit) > 0);
       LOG ("transred propagating %d", lit);
       propagations++;
@@ -138,7 +138,7 @@ void Internal::transred () {
         if (d == c) continue;
         if (irredundant && d->redundant) continue;
         if (d->garbage) continue;
-        const int other = w.blit;
+        const ILit other = w.blit;
         if (other == dst) transitive = true;    // 'dst' reached
         else {
           const int tmp = marked (other);
@@ -158,7 +158,7 @@ void Internal::transred () {
     // Unassign all assigned literals (same as '[bp]acktrack').
     //
     while (!work.empty ()) {
-      const int lit = work.back ();
+      const ILit lit = work.back ();
       work.pop_back ();
       unmark (lit);
     }

@@ -35,7 +35,7 @@ bool Internal::decompose_round () {
 
   const size_t size_dfs = 2*(1 + (size_t) max_var);
   DFS * dfs = new DFS[size_dfs];
-  int * reprs = new int[size_dfs];
+  ILit * reprs = new ILit[size_dfs];
   clear_n (reprs, size_dfs);
 
   int non_trivial_sccs = 0, substituted = 0;
@@ -44,8 +44,8 @@ bool Internal::decompose_round () {
 #endif
   unsigned dfs_idx = 0;
 
-  vector<int> work;                     // depth first search working stack
-  vector<int> scc;                      // collects members of one SCC
+  vector<ILit> work;                    // depth first search working stack
+  vector<ILit> scc;                     // collects members of one SCC
 
   // The binary implication graph might have disconnected components and
   // thus we have in general to start several depth first searches.
@@ -61,7 +61,7 @@ bool Internal::decompose_round () {
       assert (scc.empty ());
       work.push_back (root);
       while (!unsat && !work.empty ()) {
-        int parent = work.back ();
+        ILit parent = work.back ();
         DFS & parent_dfs = dfs[vlit (parent)];
         if (parent_dfs.min == TRAVERSED) {              // skip traversed
           assert (reprs [vlit (parent)]);
@@ -92,7 +92,7 @@ bool Internal::decompose_round () {
 
             for (const auto & w : ws) {
               if (!w.binary ()) continue;
-              const int child = w.blit;
+              const ILit child = w.blit;
               if (!active (child)) continue;
               const DFS & child_dfs = dfs[vlit (child)];
               if (new_min > child_dfs.min) new_min = child_dfs.min;
@@ -109,7 +109,8 @@ bool Internal::decompose_round () {
               // contains both a literal and its negation, then the formula
               // becomes unsatisfiable.
 
-              int other, size = 0, repr = parent;
+              int size = 0;
+              ILit other = 0, repr = parent;
               assert (!scc.empty ());
               size_t j = scc.size ();
               do {
@@ -122,7 +123,7 @@ bool Internal::decompose_round () {
                   PROOF_TODO (proof, "SCC 2", 42); // TODO(Mario)
                   learn_empty_clause ();
                 } else {
-                  if (abs (other) < abs (repr)) repr = other;
+                  if (abs (i_val(other)) < abs (i_val(repr))) repr = other;
                   size++;
                 }
               } while (!unsat && other != parent);
@@ -173,7 +174,7 @@ bool Internal::decompose_round () {
 
             for (const auto & w : ws) {
               if (!w.binary ()) continue;
-              const int child = w.blit;
+              const ILit child = w.blit;
               if (!active (child)) continue;
               const DFS & child_dfs = dfs[vlit (child)];
               if (child_dfs.idx) continue;
@@ -209,8 +210,8 @@ bool Internal::decompose_round () {
     if (c->garbage) continue;
     int j, size = c->size;
     for (j = 0; j < size; j++) {
-      const int lit = c->literals[j];
-      if (reprs [ vlit (lit) ] != lit) break;
+      const ILit lit = c->literals[j];
+      if (reprs [ vlit (lit) ] != i_val(lit)) break;
     }
 
     if (j == size) continue;
@@ -227,12 +228,12 @@ bool Internal::decompose_round () {
     bool satisfied = false;
 
     for (int k = 0; !satisfied && k < size; k++) {
-      const int lit = c->literals[k];
+      const ILit lit = c->literals[k];
       signed char tmp = val (lit);
       if (tmp > 0) satisfied = true;
       else if (tmp < 0) continue;
       else {
-        const int other = reprs [vlit (lit)];
+        const ILit other = reprs [vlit (lit)];
         tmp = val (other);
         if (tmp < 0) continue;
         else if (tmp > 0) satisfied = true;
@@ -302,7 +303,7 @@ bool Internal::decompose_round () {
       LOG (c, "substituted");
     }
     while (!clause.empty ()) {
-      int lit = clause.back ();
+      ILit lit = clause.back ();
       clause.pop_back ();
       assert (marked (lit) > 0);
       unmark (lit);
@@ -344,7 +345,7 @@ bool Internal::decompose_round () {
   for (auto idx : vars) {
     if (unsat) break;
     if (!active (idx)) continue;
-    int other = reprs [ vlit (idx) ];
+    ILit other = reprs [ vlit (idx) ];
     if (other == idx) continue;
     assert (!flags (other).eliminated ());
     assert (!flags (other).substituted ());

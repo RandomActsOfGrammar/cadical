@@ -19,11 +19,11 @@ struct Clause;
 
 struct Watch {
 
-  Clause * clause; int blit;
+  Clause * clause; ILit blit;
   int size;
 
-  Watch (int b, Clause * c) : clause (c), blit (b), size (c->size) { }
-  Watch () { }
+  Watch (ILit b, Clause * c) : clause (c), blit (b), size (c->size) { }
+  Watch () : blit (0) { }
 
   bool binary () const { return size == 2; }
 };

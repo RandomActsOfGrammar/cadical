@@ -57,8 +57,8 @@ Proof::~Proof () { LOG ("PROOF delete"); }
 
 /*------------------------------------------------------------------------*/
 
-inline void Proof::add_literal (int internal_lit) {
-  const int external_lit = internal->externalize (internal_lit);
+inline void Proof::add_literal (ILit internal_lit) {
+  const ELit external_lit = internal->externalize (internal_lit);
   clause.push_back (external_lit);
 }
 
@@ -67,14 +67,14 @@ inline void Proof::add_literals (Clause * c) {
     add_literal (lit);
 }
 
-inline void Proof::add_literals (const vector<int> & c) {
+inline void Proof::add_literals (const vector<ILit> & c) {
   for (auto const & lit : c)
     add_literal (lit);
 }
 
 /*------------------------------------------------------------------------*/
 
-void Proof::add_original_clause (clause_id_t id, const vector<int> & c) {
+void Proof::add_original_clause (clause_id_t id, const vector<ILit> & c) {
   LOG (c, "PROOF adding original internal clause [%ld]", id);
   add_literals (c);
   add_original_clause (id);
@@ -86,7 +86,7 @@ void Proof::add_derived_empty_clause (clause_id_t id, bool is_imported) {
   add_derived_clause (id, is_imported, 0);
 }
 
-void Proof::add_derived_unit_clause (clause_id_t id, int internal_unit, bool is_imported) {
+void Proof::add_derived_unit_clause (clause_id_t id, ILit internal_unit, bool is_imported) {
   LOG ("PROOF adding unit clause [%ld] %d", id, internal_unit);
   assert (clause.empty ());
   add_literal (internal_unit);
@@ -102,7 +102,7 @@ void Proof::add_derived_clause (Clause * c, bool is_imported) {
   add_derived_clause (c->id, is_imported, c->glue);
 }
 
-void Proof::add_derived_clause (clause_id_t id, const vector<int> & c, bool is_imported, int glue) {
+void Proof::add_derived_clause (clause_id_t id, const vector<ILit> & c, bool is_imported, int glue) {
   LOG (internal->clause, "PROOF adding derived clause [%ld]", id);
   assert (clause.empty ());
   for (const auto & lit : c)
@@ -117,7 +117,7 @@ void Proof::delete_clause (Clause * c) {
   delete_clause (c->id);
 }
 
-void Proof::delete_clause (clause_id_t id, const vector<int> & c) {
+void Proof::delete_clause (clause_id_t id, const vector<ILit> & c) {
   LOG (c, "PROOF deleting from proof [%ld]", id);
   assert (clause.empty ());
   add_literals (c);
@@ -132,7 +132,7 @@ void Proof::finalize_clause (Clause * c) {
   finalize_clause (c->id);
 }
 
-void Proof::finalize_clause (clause_id_t id, const vector<int> & c) {
+void Proof::finalize_clause (clause_id_t id, const vector<ILit> & c) {
   if (!internal->opts.lrat) return;
   LOG (c, "PROOF finalizing [%ld]", id);
   assert (clause.empty ());
@@ -140,7 +140,7 @@ void Proof::finalize_clause (clause_id_t id, const vector<int> & c) {
   finalize_clause (id);
 }
 
-void Proof::finalize_clause_ext (clause_id_t id, const vector<int> & c) {
+void Proof::finalize_clause_ext (clause_id_t id, const vector<ELit> & c) {
   clause = c;
   finalize_clause (id);
 }
@@ -161,7 +161,7 @@ void Proof::flush_clause (Clause * c) {
   assert (clause.empty ());
   internal->chain.clear ();
   for (int i = 0; i < c->size; i++) {
-    int internal_lit = c->literals[i];
+    ILit internal_lit = c->literals[i];
     if (internal->fixed (internal_lit) < 0) {
       internal->chain.push_back(internal->var (internal_lit).unit_id);
       continue;
@@ -181,11 +181,11 @@ void Proof::flush_clause (Clause * c) {
 // to avoid copying the clause and instead provides tracing of the required
 // 'add' and 'remove' operations.
 
-void Proof::strengthen_clause (Clause * c, int remove) {
+void Proof::strengthen_clause (Clause * c, ILit remove) {
   LOG (c, "PROOF strengthen by removing %d in", remove);
   assert (clause.empty ());
   for (int i = 0; i < c->size; i++) {
-    int internal_lit = c->literals[i];
+    ILit internal_lit = c->literals[i];
     if (internal_lit == remove) continue;
     add_literal (internal_lit);
   }

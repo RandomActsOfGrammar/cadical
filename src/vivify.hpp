@@ -7,7 +7,7 @@ struct Clause;
 
 struct Vivifier {
   vector<Clause *> schedule, stack;
-  vector<int> sorted;
+  vector<ILit> sorted;
   bool redundant_mode;
   Vivifier (bool mode) : redundant_mode (mode) { }
 

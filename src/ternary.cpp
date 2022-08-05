@@ -23,17 +23,17 @@ namespace CaDiCaL {
 // literals already exists.
 
 bool
-Internal::ternary_find_binary_clause (int a, int b) {
+Internal::ternary_find_binary_clause (ILit a, ILit b) {
   assert (occurring ());
   assert (active (a));
   assert (active (b));
   size_t s = occs (a).size ();
   size_t t = occs (b).size ();
-  int lit = s < t ? a : b;
+  ILit lit = s < t ? a : b;
   if (opts.ternaryocclim < (int) occs (lit).size ()) return true;
   for (const auto & c : occs (lit)) {
     if (c->size != 2) continue;
-    const int * lits = c->literals;
+    const ILit * lits = c->literals;
     if (lits[0] == a && lits[1] == b) return true;
     if (lits[0] == b && lits[1] == a) return true;
   }
@@ -46,7 +46,7 @@ Internal::ternary_find_binary_clause (int a, int b) {
 // literals  already exists or is subsumed by an existing binary clause.
 
 bool
-Internal::ternary_find_ternary_clause (int a, int b, int c) {
+Internal::ternary_find_ternary_clause (ILit a, ILit b, ILit c) {
   assert (occurring ());
   assert (active (a));
   assert (active (b));
@@ -54,12 +54,12 @@ Internal::ternary_find_ternary_clause (int a, int b, int c) {
   size_t r = occs (a).size ();
   size_t s = occs (b).size ();
   size_t t = occs (c).size ();
-  int lit;
+  ILit lit;
   if (r < s) lit = (t < r) ? c : a;
   else       lit = (t < s) ? c : b;
   if (opts.ternaryocclim < (int) occs (lit).size ()) return true;
   for (const auto & d : occs (lit)) {
-    const int * lits = d->literals;
+    const ILit * lits = d->literals;
     if (d->size == 2) {
       if (lits[0] == a && lits[1] == b) return true;
       if (lits[0] == b && lits[1] == a) return true;
@@ -90,8 +90,8 @@ Internal::ternary_find_ternary_clause (int a, int b, int c) {
 // needs to be cleared in any case.
 
 bool
-Internal::hyper_ternary_resolve (Clause * c, int pivot, Clause * d) {
-  LOG ("hyper binary resolving on pivot %d", pivot);
+Internal::hyper_ternary_resolve (Clause * c, ILit pivot, Clause * d) {
+  LOG ("hyper binary resolving on pivot %d", i_val(pivot));
   LOG (c, "1st antecedent");
   LOG (d, "2nd antecedent");
   stats.ternres++;
@@ -128,7 +128,7 @@ Internal::hyper_ternary_resolve (Clause * c, int pivot, Clause * d) {
 // the effort spent in 'ternary' is that it should be similar to one
 // propagation step during search.
 
-void Internal::ternary_lit (int pivot, int64_t & steps, int64_t & htrs) {
+void Internal::ternary_lit (ILit pivot, int64_t & steps, int64_t & htrs) {
   LOG ("starting hyper ternary resolutions on pivot %d", pivot);
   for (const auto & c : occs (pivot)) {
     if (htrs < 0) break;

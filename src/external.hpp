@@ -92,7 +92,7 @@ struct External {
   void export_learned_empty_clause ();
   //assume literals are already externalized for both of these
   void export_learned_unit_clause (clause_id_t clause_id, ELit elit);
-  void export_learned_large_clause (clause_id_t clause_id, const vector<int> &, int glue);
+  void export_learned_large_clause (clause_id_t clause_id, const vector<ELit> &, int glue);
 
   //----------------------------------------------------------------------//
 
@@ -147,8 +147,8 @@ struct External {
   void push_witness_literal_on_extension_stack (ILit ilit);
 
   void push_clause_on_extension_stack (Clause *);
-  void push_clause_on_extension_stack (Clause *, int witness);
-  void push_binary_clause_on_extension_stack (int witness, int other);
+  void push_clause_on_extension_stack (Clause *, ILit witness);
+  void push_binary_clause_on_extension_stack (ILit witness, ILit other);
 
   // The main 'extend' function which extends an internal assignment to an
   // external assignment using the extension stack (and sets 'extended').
@@ -197,8 +197,8 @@ struct External {
 
   // Restore a clause, which was pushed on the extension stack.
   void restore_clause (
-    const vector<int>::const_iterator & begin,
-    const vector<int>::const_iterator & end);
+    const vector<ELit>::const_iterator & begin,
+    const vector<ELit>::const_iterator & end);
 
   void restore_clauses ();
 
@@ -319,14 +319,14 @@ struct External {
 
   void check_solution_on_learned_clause ();
   void check_solution_on_shrunken_clause (Clause *);
-  void check_solution_on_learned_unit_clause (int unit);
+  void check_solution_on_learned_unit_clause (ILit unit);
   void check_no_solution_after_learning_empty_clause ();
 
   void check_learned_empty_clause () {
     if (solution) check_no_solution_after_learning_empty_clause ();
   }
 
-  void check_learned_unit_clause (int unit) {
+  void check_learned_unit_clause (ILit unit) {
     if (solution) check_solution_on_learned_unit_clause (unit);
   }
 

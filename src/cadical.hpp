@@ -235,7 +235,7 @@ public:
   //   require (READY)
   //   ensure (UNKNOWN)
   //
-  void assume (int lit);
+  void assume (ELit lit);
 
   // Try to solve the current formula.  Returns
   //
@@ -258,7 +258,7 @@ public:
   //   require (SATISFIED)
   //   ensure (SATISFIED)
   //
-  int val (int lit);
+  int val (ELit lit);
 
   // Determine whether the valid non-zero literal is in the core.
   // Returns 'true' if the literal is in the core and 'false' otherwise.
@@ -267,7 +267,7 @@ public:
   //   require (UNSATISFIED)
   //   ensure (UNSATISFIED)
   //
-  bool failed (int lit);
+  bool failed (ELit lit);
 
   // Add call-back which is checked regularly for termination.  There can
   // only be one terminator connected.  If a second (non-zero) one is added
@@ -310,11 +310,11 @@ public:
   //   require (READY)
   //   ensure (UNKNOWN|SATISFIED|UNSATISFIED)
   //
-  int lookahead(void);
+  ELit lookahead(void);
 
   struct CubesWithStatus {
     int status;
-    std::vector<std::vector<int>> cubes;
+    std::vector<std::vector<ILit>> cubes;
   };
 
   CubesWithStatus generate_cubes(int, int min_depth = 0);
@@ -574,9 +574,9 @@ public:
   //   require (VALID)
   //   ensure (VALID)
   //
-  bool frozen (int lit) const;
-  void freeze (int lit);
-  void melt (int lit);          // Also needs 'require (frozen (lit))'.
+  bool frozen (ELit lit) const;
+  void freeze (ELit lit);
+  void melt (ELit lit);          // Also needs 'require (frozen (lit))'.
 
   //------------------------------------------------------------------------
 
@@ -587,13 +587,13 @@ public:
   //   require (VALID)
   //   ensure (VALID)
   //
-  int fixed (int lit) const;
+  int fixed (ELit lit) const;
 
   //------------------------------------------------------------------------
   // Force the default decision phase of a variable to a certain value.
   //
-  void phase (int lit);
-  void unphase (int lit);
+  void phase (ELit lit);
+  void unphase (ELit lit);
 
   //------------------------------------------------------------------------
 
@@ -895,7 +895,8 @@ public:
 class ClauseIterator {
 public:
   virtual ~ClauseIterator () { }
-  virtual bool clause (const std::vector<int> &) = 0;
+  virtual bool clause (const std::vector<ILit> &) = 0;
+  virtual bool clause (const std::vector<ELit> &) = 0;
 };
 
 /*------------------------------------------------------------------------*/

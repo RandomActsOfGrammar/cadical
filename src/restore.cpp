@@ -48,11 +48,11 @@ namespace CaDiCaL {
 /*------------------------------------------------------------------------*/
 
 void External::restore_clause (
-  const vector<int>::const_iterator & begin,
-  const vector<int>::const_iterator & end) {
+  const vector<ELit>::const_iterator & begin,
+  const vector<ELit>::const_iterator & end) {
   LOG (begin, end, "restoring external clause");
   for (auto p = begin; p != end; p++) {
-    int ilit = internalize (*p);
+    ILit ilit = internalize (*p);
     internal->add_original_lit (ilit);
     internal->stats.restoredlits++;
   }
@@ -100,12 +100,12 @@ void External::restore_clauses () {
 
     // Copy witness part and try to find a tainted witness literal in it.
     //
-    int tlit = 0;                               // Negation tainted.
-    int elit;
+    ELit tlit = 0;                               // Negation tainted.
+    ELit elit;
     //
     assert (p != end_of_extension);
     //
-    while ((elit = *q++ = *p++)) {
+    while (e_val(elit = *q++ = *p++)) {
 
       if (marked (tainted, -elit)) {
         tlit = elit;
@@ -118,10 +118,10 @@ void External::restore_clauses () {
     // Now find 'end_of_clause' (clause starts at 'p') and at the same time
     // figure out whether the clause is actually root level satisfied.
     //
-    int satisfied = 0;
+    ELit satisfied = 0;
     auto end_of_clause = p;
-    while (end_of_clause != end_of_extension && (elit = *end_of_clause)) {
-      if (!satisfied && fixed (elit) > 0)
+    while (end_of_clause != end_of_extension && e_val(elit = *end_of_clause)) {
+      if (!e_val(satisfied) && fixed (elit) > 0)
         satisfied = elit;
       end_of_clause++;
     }
@@ -129,18 +129,18 @@ void External::restore_clauses () {
     // Do not apply our 'FLUSH' rule to remove satisfied (implied) clauses
     // if the corresponding option is set simply by resetting 'satisfied'.
     //
-    if (satisfied && !internal->opts.restoreflush) {
+    if (e_val(satisfied) && !internal->opts.restoreflush) {
       LOG (p, end_of_clause,
-        "forced to not remove %d satisfied", satisfied);
+         "forced to not remove %d satisfied", e_val(satisfied));
       satisfied = 0;
     }
 
-    if (satisfied || tlit || internal->opts.restoreall) {
+    if (e_val(satisfied) || e_val(tlit) || internal->opts.restoreall) {
 
-      if (satisfied) {
+      if (e_val(satisfied)) {
         LOG (p, end_of_clause,
           "flushing implied clause satisfied by %d from extension stack",
-          satisfied);
+           e_val(satisfied));
         clauses.satisfied++;
       } else {
         restore_clause (p, end_of_clause);      // Might taint literals.
@@ -204,11 +204,11 @@ void External::restore_clauses () {
   const auto begin_of_extension = extension.begin ();
   p = extension.end ();
   while (p != begin_of_extension) {
-    while (*--p)
+    while (e_val(*--p))
       assert (p != begin_of_extension);
-    int elit;
+    ELit elit;
     assert (p != begin_of_extension);
-    while ((elit = *--p)) {
+    while (e_val(elit = *--p)) {
       mark (witness, elit);
       assert (p != begin_of_extension);
     }

@@ -115,7 +115,7 @@ Clause * Internal::walk_pick_clause (Walker & walker) {
 // Compute the number of clauses which would be become unsatisfied if 'lit'
 // is flipped and set to false.  This is called the 'break-count' of 'lit'.
 
-unsigned Internal::walk_break_value (int lit) {
+unsigned Internal::walk_break_value (ILit lit) {
 
   require_mode (WALK);
   assert (val (lit) > 0);
@@ -139,9 +139,9 @@ unsigned Internal::walk_break_value (int lit) {
     auto begin = c->begin () + 1;
     const auto end = c->end ();
     auto i = begin;
-    int prev = 0;
+    ILit prev = 0;
     while (i != end) {
-      const int other = *i;
+      const ILit other = *i;
       *i++ = prev;
       prev = other;
       if (val (other) < 0) continue;
@@ -159,7 +159,7 @@ unsigned Internal::walk_break_value (int lit) {
     // Otherwise restore literals (undo shift to the right).
     //
     while (i != begin) {
-      const int other = *--i;
+      const ILit other = *--i;
       *i = prev;
       prev = other;
     }
@@ -183,7 +183,7 @@ unsigned Internal::walk_break_value (int lit) {
 // SAT solving we can not flip assumed variables.  Those are assigned at
 // decision level one, while the other variables are assigned at two.
 
-int Internal::walk_pick_lit (Walker & walker, Clause * c) {
+ILit Internal::walk_pick_lit (Walker & walker, Clause * c) {
   LOG ("picking literal by break-count");
   assert (walker.scores.empty ());
   double sum = 0;
@@ -212,7 +212,7 @@ int Internal::walk_pick_lit (Walker & walker, Clause * c) {
   const auto end = c->end ();
   auto i = c->begin ();
   auto j = walker.scores.begin ();
-  int res;
+  ILit res;
   for (;;) {
     assert (i != end);
     res = *i++;
@@ -235,7 +235,7 @@ int Internal::walk_pick_lit (Walker & walker, Clause * c) {
 
 /*------------------------------------------------------------------------*/
 
-void Internal::walk_flip_lit (Walker & walker, int lit) {
+void Internal::walk_flip_lit (Walker & walker, ILit lit) {
 
   require_mode (WALK);
   LOG ("flipping assign %d", lit);
@@ -243,8 +243,8 @@ void Internal::walk_flip_lit (Walker & walker, int lit) {
 
   // First flip the literal value.
   //
-  const int tmp = sign (lit);
-  const int idx = abs (lit);
+  const int tmp = sign (i_val(lit));
+  const int idx = abs (i_val(lit));
   vals[idx] = tmp;
   vals[-idx] = -tmp;
   assert (val (lit) > 0);
@@ -277,13 +277,13 @@ void Internal::walk_flip_lit (Walker & walker, int lit) {
 
       Clause * d = *j++ = *i++;
 
-      int * literals = d->literals, prev = 0;
+      ILit * literals = d->literals, prev = 0;
 
       // Find 'lit' in 'd'.
       //
       const int size = d->size;
       for (int i = 0; i < size; i++) {
-        const int other = literals[i];
+        const ILit other = literals[i];
         assert (active (other));
         literals[i] = prev;
         prev = other;
@@ -303,7 +303,7 @@ void Internal::walk_flip_lit (Walker & walker, int lit) {
       } else {  // Otherwise the clause is not satisfied, undo shift.
 
         for (int i = size-1; i >= 0; i--) {
-          int other = literals[i];
+          ILit other = literals[i];
           literals[i] = prev;
           prev = other;
         }
@@ -337,11 +337,11 @@ void Internal::walk_flip_lit (Walker & walker, int lit) {
     for (const auto w : ws) {
       Clause * d = w.clause;
       LOG (d, "unwatch %d in", -lit);
-      int * literals = d->literals, replacement = 0, prev = -lit;
+      ILit * literals = d->literals, replacement = 0, prev = -lit;
       assert (literals[0] == -lit);
       const int size = d->size;
       for (int i = 1; i < size; i++) {
-        const int other = literals[i];
+        const ILit other = literals[i];
         assert (active (other));
         literals[i] = prev;             // shift all to right
         prev = other;
@@ -350,14 +350,14 @@ void Internal::walk_flip_lit (Walker & walker, int lit) {
         replacement = other;            // satisfying literal
         break;
       }
-      if (replacement) {
+      if (i_val(replacement)) {
         literals[1] = -lit;
         literals[0] = replacement;
         assert (-lit != replacement);
         watch_literal (replacement, -lit, d);
       } else {
         for (int i = size-1; i > 0; i--) {      // undo shift
-          const int other = literals[i];
+          const ILit other = literals[i];
           literals[i] = prev;
           prev = other;
         }
@@ -460,8 +460,8 @@ int Internal::walk_round (int64_t limit, bool prev) {
         break;
       }
       if (!active (lit)) continue;
-      tmp = sign (lit);
-      const int idx = abs (lit);
+      tmp = sign (i_val(lit));
+      const int idx = abs (i_val(lit));
       LOG ("initial assign %d to assumption phase", tmp < 0 ? -idx : idx);
       vals[idx] = tmp;
       vals[-idx] = -tmp;
@@ -512,14 +512,14 @@ int Internal::walk_round (int64_t limit, bool prev) {
       bool satisfiable = false;         // contains not only assumptions
       int satisfied = 0;                // clause satisfied?
 
-      int * lits = c->literals;
+      ILit * lits = c->literals;
       const int size = c->size;
 
       // Move to front satisfied literals and determine whether there
       // is at least one (non-assumed) literal that can be flipped.
       //
       for (int i = 0; satisfied < 2 && i < size; i++) {
-        const int lit = lits[i];
+        const ILit lit = lits[i];
         assert (active (lit));  // Due to garbage collection.
         if (val (lit) > 0) {
           swap (lits[satisfied], lits[i]);
@@ -583,7 +583,7 @@ int Internal::walk_round (int64_t limit, bool prev) {
       stats.walk.flips++;
       stats.walk.broken += broken;
       Clause * c = walk_pick_clause (walker);
-      const int lit = walk_pick_lit (walker, c);
+      const ILit lit = walk_pick_lit (walker, c);
       walk_flip_lit (walker, lit);
       broken = walker.broken.size ();
       LOG ("now have %" PRId64 " broken clauses in total", broken);

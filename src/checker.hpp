@@ -31,15 +31,15 @@ struct CheckerClause {
   CheckerClause * next;         // collision chain link for hash table
   uint64_t hash;                // previously computed full 64-bit hash
   unsigned size;                // zero if this is a garbage clause
-  int literals[2];              // otherwise 'literals' of length 'size'
+  ELit literals[2];              // otherwise 'literals' of length 'size'
 };
 
 struct CheckerWatch {
-  int blit;
+  ELit blit;
   unsigned size;
   CheckerClause * clause;
   CheckerWatch () { }
-  CheckerWatch (int b, CheckerClause * c) :
+  CheckerWatch (ELit b, CheckerClause * c) :
     blit (b), size (c->size), clause (c)
   { }
 };
@@ -69,8 +69,8 @@ class Checker : public Observer {
   vector<CheckerWatcher> watchers;      // watchers of literals
   vector<signed char> marks;            // mark bits of literals
 
-  signed char & mark (int lit);
-  CheckerWatcher & watcher (int lit);
+  signed char & mark (ELit lit);
+  CheckerWatcher & watcher (ELit lit);
 
   bool inconsistent;            // found or added empty clause
 
@@ -80,16 +80,16 @@ class Checker : public Observer {
   CheckerClause ** clauses;     // hash table of clauses
   CheckerClause * garbage;      // linked list of garbage clauses
 
-  vector<int> unsimplified;     // original clause for reporting
-  vector<int> simplified;       // clause for sorting
+  vector<ELit> unsimplified;     // original clause for reporting
+  vector<ELit> simplified;       // clause for sorting
 
-  vector<int> trail;            // for propagation
+  vector<ELit> trail;            // for propagation
 
   unsigned next_to_propagate;   // next to propagate on trail
 
   void enlarge_vars (int64_t idx);
-  void import_literal (int lit);
-  void import_clause (const vector<int> &);
+  void import_literal (ELit lit);
+  void import_clause (const vector<ELit> &);
   bool tautological ();
 
   static const unsigned num_nonces = 4;
@@ -114,12 +114,12 @@ class Checker : public Observer {
   CheckerClause * new_clause ();
   void delete_clause (CheckerClause *);
 
-  signed char val (int lit);            // returns '-1', '0' or '1'
+  signed char val (ELit lit);            // returns '-1', '0' or '1'
 
   bool clause_satisfied (CheckerClause*);
 
-  void assign (int lit);        // assign a literal to true
-  void assume (int lit);        // assume a literal
+  void assign (ELit lit);        // assign a literal to true
+  void assume (ELit lit);        // assume a literal
   bool propagate ();            // propagate and check for conflicts
   bool propagate_chain (const vector<int64_t>*); // propagate and check for conflicts
   void backtrack (unsigned);    // prepare for next clause
@@ -154,9 +154,9 @@ public:
 
   // The following three implement the 'Observer' interface.
   //
-  void add_original_clause (clause_id_t, const vector<int> &);
-  void add_derived_clause (clause_id_t, const vector<clause_id_t> *, const vector<int> &);
-  void delete_clause (clause_id_t, const vector<int> &);
+  void add_original_clause (clause_id_t, const vector<ELit> &);
+  void add_derived_clause (clause_id_t, const vector<clause_id_t> *, const vector<ELit> &);
+  void delete_clause (clause_id_t, const vector<ELit> &);
 
   void print_stats ();
   void dump ();                 // for debugging purposes only

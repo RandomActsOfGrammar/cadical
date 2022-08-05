@@ -15,10 +15,10 @@ namespace CaDiCaL {
         LOG ("LEARNEROBSERVER delete");
     }
 
-    void LearnerObserver::add_original_clause (clause_id_t, const vector<int> &){ }
+    void LearnerObserver::add_original_clause (clause_id_t, const vector<ELit> &){ }
 
     void LearnerObserver::add_derived_clause (clause_id_t id, const vector<clause_id_t> *,
-                                              const vector<int> &lits, bool is_imported, int glue){
+                                              const vector<ELit> &lits, bool is_imported, int glue){
         if (is_imported){ //only export if not imported
             return;
         }
@@ -37,9 +37,9 @@ namespace CaDiCaL {
         //ignore empty clause
     }
 
-    void LearnerObserver::delete_clause (clause_id_t, const vector<int> &){ }
+    void LearnerObserver::delete_clause (clause_id_t, const vector<ELit> &){ }
 
-    void LearnerObserver::finalize_clause (clause_id_t, const vector<int> &){ }
+    void LearnerObserver::finalize_clause (clause_id_t, const vector<ELit> &){ }
 
     void LearnerObserver::add_todo (const vector<int64_t> &){ }
 

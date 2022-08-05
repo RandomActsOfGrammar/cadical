@@ -41,7 +41,7 @@ void Internal::elim_backward_clause (Eliminator & eliminator, Clause *c) {
   LOG (c, "attempting backward subsumption and strengthening with");
   size_t len = UINT_MAX;
   unsigned size = 0;
-  int best = 0;
+  ILit best = 0;
   bool satisfied = false;
   for (const auto & lit : *c) {
     const signed char tmp = val (lit);
@@ -67,7 +67,7 @@ void Internal::elim_backward_clause (Eliminator & eliminator, Clause *c) {
       if (d == c) continue;
       if (d->garbage) continue;
       if ((unsigned) d->size < size) continue;
-      int negated = 0;
+      ILit negated(0);
       unsigned found = 0;
       for (const auto & lit : *d) {
         signed char tmp = val (lit);
@@ -76,7 +76,7 @@ void Internal::elim_backward_clause (Eliminator & eliminator, Clause *c) {
         tmp = marked (lit);
         if (!tmp) continue;
         if (tmp < 0) {
-          if (negated) { size = UINT_MAX; break; }
+          if (i_val(negated)) { size = UINT_MAX; break; }
           else negated = lit;
         }
         if (++found == size) break;
@@ -86,28 +86,28 @@ void Internal::elim_backward_clause (Eliminator & eliminator, Clause *c) {
         elim_update_removed_clause (eliminator, d);
         mark_garbage (d);
       } else if (found == size) {
-        if (!negated) {
+        if (!i_val(negated)) {
           LOG (d, "found subsumed clause");
           elim_update_removed_clause (eliminator, d);
           mark_garbage (d);
           stats.subsumed++;
           stats.elimbwsub++;
         } else {
-          int unit = 0;
+            ILit unit(0);
           for (const auto & lit : * d) {
             const signed char tmp = val (lit);
             if (tmp < 0) continue;
             if (tmp > 0) { satisfied = true; break; }
-            if (lit == negated) continue;
-            if (unit) { unit = INT_MIN; break; }
+            if (i_val(lit) == i_val(negated)) continue;
+            if (i_val(unit)) { unit = INT_MIN; break; }
             else unit = lit;
           }
-          assert (unit);
+          assert (i_val(unit));
           if (satisfied) {
             mark_garbage (d);
             elim_update_removed_clause (eliminator, d);
-          } else if (unit && unit != INT_MIN) {
-            assert (unit);
+          } else if (i_val(unit) && i_val(unit) != INT_MIN) {
+            assert (i_val(unit));
             LOG (d, "unit %d through hyper unary resolution with", unit);
             PROOF_TODO (proof, "hyper unary resolution unit", 20); // TODO(Mario)
             assign_unit (unit);

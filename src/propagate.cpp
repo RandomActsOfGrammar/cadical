@@ -27,7 +27,7 @@ static Clause * decision_reason = &decision_reason_clause;
 // current decision level, the concept of assignment level does not make
 // sense, and accordingly this function can be skipped.
 
-inline int Internal::assignment_level (int lit, Clause * reason) {
+inline int Internal::assignment_level (ILit lit, Clause * reason) {
 
   assert (opts.chrono);
   if (!reason) return level;
@@ -46,7 +46,7 @@ inline int Internal::assignment_level (int lit, Clause * reason) {
 
 /*------------------------------------------------------------------------*/
 
-inline void Internal::search_assign (int lit, Clause * reason) {
+inline void Internal::search_assign (ILit lit, Clause * reason) {
 
   if (level) require_mode (SEARCH);
 
@@ -66,7 +66,7 @@ inline void Internal::search_assign (int lit, Clause * reason) {
   if (!lit_level) {
     if (proof && chain.empty () && reason && reason != decision_reason) {
       for (const_literal_iterator l = reason->begin (); l != reason->end (); l++) {
-        const int lit2 = *l;
+        const ILit lit2 = *l;
         if (lit2 == lit) continue;
         clause_id_t id = var (lit2).unit_id;
         assert (id);
@@ -81,7 +81,7 @@ inline void Internal::search_assign (int lit, Clause * reason) {
   v.trail = (int) trail.size ();
   v.reason = reason;
   if (!lit_level) learn_unit_clause (lit);  // increases 'stats.fixed'
-  const signed char tmp = sign (lit);
+  const signed char tmp = sign (i_val(lit));
   vals[idx] = tmp;
   vals[-idx] = -tmp;
   assert (val (lit) > 0);
@@ -111,7 +111,7 @@ inline void Internal::search_assign (int lit, Clause * reason) {
 // clause.  This happens far less frequently than the 'search_assign' above,
 // which is called directly in 'propagate' below and thus is inlined.
 
-void Internal::assign_unit (int lit) {
+void Internal::assign_unit (ILit lit) {
   assert (!level);
   search_assign (lit, 0);
 }
@@ -119,7 +119,7 @@ void Internal::assign_unit (int lit) {
 // Just assume the given literal as decision (increase decision level and
 // assign it).  This is used below in 'decide'.
 
-void Internal::search_assume_decision (int lit) {
+void Internal::search_assume_decision (ILit lit) {
   require_mode (SEARCH);
   assert (propagated == trail.size ());
   level++;
@@ -128,7 +128,7 @@ void Internal::search_assume_decision (int lit) {
   search_assign (lit, decision_reason);
 }
 
-void Internal::search_assign_driving (int lit, Clause * c) {
+void Internal::search_assign_driving (ILit lit, Clause * c) {
   require_mode (SEARCH);
   search_assign (lit, c);
 }
@@ -166,7 +166,7 @@ bool Internal::propagate () {
 
   while (!conflict && propagated != trail.size ()) {
 
-    const int lit = -trail[propagated++];
+    const ILit lit = -trail[propagated++];
     LOG ("propagating %d", -lit);
     Watches & ws = watches (lit);
 
@@ -233,7 +233,7 @@ bool Internal::propagate () {
         //
         // which achieves the same effect, but needs a branch.
         //
-        const int other = lits[0] ^ lits[1] ^ lit;
+        const ILit other = i_val(lits[0]) ^ i_val(lits[1]) ^ i_val(lit);
         const signed char u = val (other); // value of the other watch
 
         if (u > 0) j[-1].blit = other; // satisfied, just replace blit
@@ -257,14 +257,14 @@ bool Internal::propagate () {
           int r = 0;
           signed char v = -1;
 
-          while (k != end && (v = val (r = *k)) < 0)
+          while (k != end && (v = val (r = i_val(*k))) < 0)
             k++;
 
           if (v < 0) {  // need second search starting at the head?
 
             k = lits + 2;
             assert (w.clause->pos <= size);
-            while (k != middle && (v = val (r = *k)) < 0)
+            while (k != middle && (v = val (r = i_val(*k))) < 0)
               k++;
           }
 
@@ -322,7 +322,7 @@ bool Internal::propagate () {
                 int pos, s = 0;
 
                 for (pos = 2; pos < size; pos++)
-                  if (var (s = lits[pos]).level == other_level)
+                  if (var (s = i_val(lits[pos])).level == other_level)
                     break;
 
                 assert (s);

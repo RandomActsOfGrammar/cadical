@@ -23,10 +23,10 @@ namespace CaDiCaL {
 
 struct Coveror
 {
-  std::vector<int> added;        // acts as trail
-  std::vector<int> extend;       // extension stack for witness
-  std::vector<int> covered;      // clause literals or added through CLA
-  std::vector<int> intersection; // of literals in resolution candidates
+  std::vector<ILit> added;        // acts as trail
+  std::vector<ILit> extend;       // extension stack for witness
+  std::vector<ILit> covered;      // clause literals or added through CLA
+  std::vector<ILit> intersection; // of literals in resolution candidates
 
   size_t alas, clas;             // actual number of ALAs and CLAs
 
@@ -46,12 +46,12 @@ struct Coveror
 // only need to save the original and added covered literals.
 
 inline void
-Internal::cover_push_extension (int lit, Coveror & coveror) {
+Internal::cover_push_extension (ILit lit, Coveror & coveror) {
   coveror.extend.push_back (0);
   coveror.extend.push_back (lit);       // blocking literal comes first
   bool found = false;
   for (const auto & other : coveror.covered)
-    if (lit == other) assert (!found), found = true;
+    if (i_val(lit) == i_val(other)) assert (!found), found = true;
     else coveror.extend.push_back (other);
   assert (found);
   (void) found;
@@ -60,15 +60,15 @@ Internal::cover_push_extension (int lit, Coveror & coveror) {
 // Successful covered literal addition (CLA) step.
 
 inline void
-Internal::covered_literal_addition (int lit, Coveror & coveror)
+Internal::covered_literal_addition (ILit lit, Coveror & coveror)
 {
   require_mode (COVER);
   assert (level == 1);
   cover_push_extension (lit, coveror);
   for (const auto & other : coveror.intersection) {
     LOG ("covered literal addition %d", other);
-    assert (!vals[other]), assert (!vals[-other]);
-    vals[other] = -1, vals[-other] = 1;
+    assert (!vals[i_val(other)]), assert (!vals[-i_val(other)]);
+    vals[i_val(other)] = -1, vals[-i_val(other)] = 1;
     coveror.covered.push_back (other);
     coveror.added.push_back (other);
     coveror.clas++;
@@ -79,13 +79,13 @@ Internal::covered_literal_addition (int lit, Coveror & coveror)
 // Successful asymmetric literal addition (ALA) step.
 
 inline void
-Internal::asymmetric_literal_addition (int lit, Coveror & coveror)
+Internal::asymmetric_literal_addition (ILit lit, Coveror & coveror)
 {
   require_mode (COVER);
   assert (level == 1);
   LOG ("initial asymmetric literal addition %d", lit);
   assert (!vals[lit]), assert (!vals[-lit]);
-  vals[lit] = -1, vals[-lit] = 1;
+  vals[i_val(lit)] = -1, vals[-i_val(lit)] = 1;
   coveror.added.push_back (lit);
   coveror.alas++;
   coveror.next.covered = 0;
@@ -99,7 +99,7 @@ Internal::asymmetric_literal_addition (int lit, Coveror & coveror)
 // the detailed comments for 'propagate' in 'propagate.cpp' for details.
 
 bool
-Internal::cover_propagate_asymmetric (int lit,
+Internal::cover_propagate_asymmetric (ILit lit,
                                       Clause * ignore,
                                       Coveror & coveror)
 {
@@ -122,10 +122,10 @@ Internal::cover_propagate_asymmetric (int lit,
       if (b < 0) {
         LOG (w.clause, "found subsuming");
         subsumed = true;
-      } else asymmetric_literal_addition (-w.blit, coveror);
+      } else asymmetric_literal_addition (i_neg(w.blit), coveror);
     } else {
       literal_iterator lits = w.clause->begin ();
-      const int other = lits[0]^lits[1]^lit;
+      const int other = i_val(lits[0])^i_val(lits[1])^i_val(lit);
       lits[0] = other, lits[1] = lit;
       const signed char u = val (other);
       if (u > 0) j[-1].blit = other;
@@ -136,12 +136,12 @@ Internal::cover_propagate_asymmetric (int lit,
         literal_iterator k = middle;
         signed char v = -1;
         int r = 0;
-        while (k != end && (v = val (r = *k)) < 0)
+        while (k != end && (v = val (r = i_val(*k))) < 0)
           k++;
         if (v < 0) {
           k = lits + 2;
           assert (w.clause->pos <= size);
-          while (k != middle && (v = val (r = *k)) < 0)
+          while (k != middle && (v = val (r = i_val(*k))) < 0)
             k++;
         }
         w.clause->pos = k - lits;
@@ -176,7 +176,7 @@ Internal::cover_propagate_asymmetric (int lit,
 // function returns 'true' if the extended clause is blocked on 'lit.'
 
 bool
-Internal::cover_propagate_covered (int lit, Coveror & coveror)
+Internal::cover_propagate_covered (ILit lit, Coveror & coveror)
 {
   require_mode (COVER);
 
@@ -191,7 +191,7 @@ Internal::cover_propagate_covered (int lit, Coveror & coveror)
   LOG ("covered propagation of %d", lit);
   assert (coveror.intersection.empty ());
 
-  Occs & os = occs (-lit);
+  Occs & os = occs (i_neg(lit));
   const auto end = os.end ();
   bool first = true;
 
@@ -253,7 +253,7 @@ Internal::cover_propagate_covered (int lit, Coveror & coveror)
       const auto end = coveror.intersection.end ();
       auto j = coveror.intersection.begin ();
       for (auto k = j; k != end; k++) {
-        const int other = *j++ = *k;
+        const ILit other = *j++ = *k;
         const int tmp = marked (other);
         assert (tmp >= 0);
         if (tmp) j--, unmark (other);   // remove marked and unmark it
@@ -341,10 +341,10 @@ bool Internal::cover_clause (Clause * c, Coveror & coveror) {
 
   while (!tautological) {
     if (coveror.next.added < coveror.added.size ()) {
-      const int lit = coveror.added[coveror.next.added++];
+      const ILit lit = coveror.added[coveror.next.added++];
       tautological = cover_propagate_asymmetric (lit, c, coveror);
     } else if (coveror.next.covered < coveror.covered.size ()) {
-      const int lit = coveror.covered[coveror.next.covered++];
+      const ILit lit = coveror.covered[coveror.next.covered++];
       tautological = cover_propagate_covered (lit, coveror);
     } else break;
   }
@@ -361,14 +361,14 @@ bool Internal::cover_clause (Clause * c, Coveror & coveror) {
       LOG (c, "covered tautological");
       mark_garbage (c);
       // Only copy extension stack if successful.
-      int prev = INT_MIN;
+      ILit prev = INT_MIN;
       for (const auto & other : coveror.extend) {
-        if (!prev) {
+        if (!i_val(prev)) {
           external->push_zero_on_extension_stack ();
           external->push_witness_literal_on_extension_stack (other);
           external->push_zero_on_extension_stack ();
         }
-        if (other)
+        if (i_val(other))
           external->push_clause_literal_on_extension_stack (other);
         prev = other;
       }
@@ -379,7 +379,7 @@ bool Internal::cover_clause (Clause * c, Coveror & coveror) {
 
   assert (level == 1);
   for (const auto & lit : coveror.added)
-    vals[lit] = vals[-lit] = 0;
+      vals[i_val(lit)] = vals[-i_val(lit)] = 0;
   level = 0;
 
   coveror.covered.clear ();

@@ -49,11 +49,11 @@ Internal::collect_instantiation_candidates (Instantiator & instantiator) {
 
 // Specialized propagation and assignment routines for instantiation.
 
-inline void Internal::inst_assign (int lit) {
+inline void Internal::inst_assign (ILit lit) {
   LOG ("instantiate assign %d", lit);
   assert (!val (lit));
-  vals[lit] = 1;
-  vals[-lit] = -1;
+  vals[i_val(lit)] = 1;
+  vals[-i_val(lit)] = -1;
   trail.push_back (lit);
 }
 
@@ -62,7 +62,7 @@ bool Internal::inst_propagate () {      // Adapted from 'propagate'.
   int64_t before = propagated;
   bool ok = true;
   while (ok && propagated != trail.size ()) {
-    const int lit = -trail[propagated++];
+    const ILit lit = -trail[propagated++];
     LOG ("instantiate propagating %d", -lit);
     Watches & ws = watches (lit);
     const const_watch_iterator eow = ws.end ();
@@ -77,7 +77,7 @@ bool Internal::inst_propagate () {      // Adapted from 'propagate'.
         else inst_assign (w.blit);
       } else {
         literal_iterator lits = w.clause->begin ();
-        const int other = lits[0]^lits[1]^lit;
+        const ILit other = i_val(lits[0])^i_val(lits[1])^i_val(lit);
         lits[0] = other, lits[1] = lit;
         const signed char u = val (other);
         if (u > 0) j[-1].blit = other;
@@ -88,12 +88,12 @@ bool Internal::inst_propagate () {      // Adapted from 'propagate'.
           literal_iterator k = middle;
           signed char v = -1;
           int r = 0;
-          while (k != end && (v = val (r = *k)) < 0)
+          while (k != end && (v = val (r = i_val(*k))) < 0)
             k++;
           if (v < 0) {
             k = lits + 2;
             assert (w.clause->pos <= size);
-            while (k != middle && (v = val (r = *k)) < 0)
+            while (k != middle && (v = val (r = i_val(*k))) < 0)
               k++;
           }
           w.clause->pos = k - lits;
@@ -135,7 +135,7 @@ bool Internal::inst_propagate () {      // Adapted from 'propagate'.
 
 // This is the actual instantiation attempt.
 
-bool Internal::instantiate_candidate (int lit, Clause * c) {
+bool Internal::instantiate_candidate (ILit lit, Clause * c) {
   stats.instried++;
   if (c->garbage) return false;
   assert (!level);
@@ -168,11 +168,11 @@ bool Internal::instantiate_candidate (int lit, Clause * c) {
   }
   bool ok = inst_propagate ();                  // Propagate.
   while (trail.size () > before) {              // Backtrack.
-    const int other = trail.back ();
+    const ILit other = trail.back ();
     LOG ("instantiate unassign %d", other);
     trail.pop_back ();
     assert (val (other) > 0);
-    vals[other] = vals[-other] = 0;
+    vals[i_val(other)] = vals[-i_val(other)] = 0;
   }
   propagated = before;
   assert (level == 1);

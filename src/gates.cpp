@@ -19,10 +19,10 @@ namespace CaDiCaL {
 
 int
 Internal::second_literal_in_binary_clause (Eliminator & eliminator,
-                                           Clause * c, int first)
+                                           Clause * c, ILit first)
 {
   assert (!c->garbage);
-  int second = 0;
+  ILit second = 0;
   for (const auto & lit : *c) {
     if (lit == first) continue;
     const signed char tmp = val (lit);
@@ -32,17 +32,17 @@ Internal::second_literal_in_binary_clause (Eliminator & eliminator,
       elim_update_removed_clause (eliminator, c);
       return 0;
     }
-    if (second) { second = INT_MIN; break; }
+    if (i_val(second)) { second = INT_MIN; break; }
     second = lit;
   }
-  if (!second) return 0;
-  if (second == INT_MIN) return 0;
+  if (!i_val(second)) return 0;
+  if (i_val(second) == INT_MIN) return 0;
   assert (active (second));
 #ifdef LOGGING
   if (c->size == 2) LOG (c, "found binary");
   else LOG (c, "found actual binary %d %d", first, second);
 #endif
-  return second;
+  return i_val(second);
 }
 
 /*------------------------------------------------------------------------*/
@@ -51,7 +51,7 @@ Internal::second_literal_in_binary_clause (Eliminator & eliminator,
 // marking we might also detect hyper unary resolvents producing a unit.
 // If such a unit is found we propagate it and return immediately.
 
-void Internal::mark_binary_literals (Eliminator & eliminator, int first) {
+void Internal::mark_binary_literals (Eliminator & eliminator, ILit first) {
 
   if (unsat) return;
   if (val (first)) return;
@@ -101,7 +101,7 @@ void Internal::unmark_binary_literals (Eliminator & eliminator) {
 // Find equivalence for 'pivot'.  Requires that all other literals in binary
 // clauses with 'pivot' are marked (through 'mark_binary_literals');
 
-void Internal::find_equivalence (Eliminator & eliminator, int pivot) {
+void Internal::find_equivalence (Eliminator & eliminator, ILit pivot) {
 
   if (!opts.elimequivs) return;
 
@@ -169,7 +169,7 @@ DONE:
 // positively.  Requires that all other literals in binary clauses with
 // 'pivot' are marked (through 'mark_binary_literals');
 
-void Internal::find_and_gate (Eliminator & eliminator, int pivot) {
+void Internal::find_and_gate (Eliminator & eliminator, ILit pivot) {
 
   if (!opts.elimands) return;
 
@@ -266,7 +266,7 @@ DONE:
 
 // Find and extract ternary clauses.
 
-bool Internal::get_ternary_clause (Clause * d, int & a, int & b, int & c)
+bool Internal::get_ternary_clause (Clause * d, ILit & a, ILit & b, ILit & c)
 {
   if (d->garbage) return false;
   if (d->size < 3) return false;
@@ -284,7 +284,7 @@ bool Internal::get_ternary_clause (Clause * d, int & a, int & b, int & c)
 
 // This function checks whether 'd' exists as ternary clause.
 
-bool Internal::match_ternary_clause (Clause * d, int a, int b, int c) {
+bool Internal::match_ternary_clause (Clause * d, ILit a, ILit b, ILit c) {
   if (d->garbage) return false;
   int found = 0;
   for (const auto & lit : *d) {
@@ -296,7 +296,7 @@ bool Internal::match_ternary_clause (Clause * d, int a, int b, int c) {
 }
 
 Clause *
-Internal::find_ternary_clause (int a, int b, int c) {
+Internal::find_ternary_clause (ILit a, ILit b, ILit c) {
   if (occs (b).size () > occs (c).size ()) swap (b, c);
   if (occs (a).size () > occs (b).size ()) swap (a, b);
   for (auto d : occs (a))
@@ -309,7 +309,7 @@ Internal::find_ternary_clause (int a, int b, int c) {
 
 // Find if-then-else gate.
 
-void Internal::find_if_then_else (Eliminator & eliminator, int pivot) {
+void Internal::find_if_then_else (Eliminator & eliminator, ILit pivot) {
 
   if (!opts.elimites) return;
 
@@ -323,20 +323,20 @@ void Internal::find_if_then_else (Eliminator & eliminator, int pivot) {
   const auto end = os.end ();
   for (auto i = os.begin (); i != end; i++) {
     Clause * di = *i;
-    int ai, bi, ci;
+    ILit ai, bi, ci;
     if (!get_ternary_clause (di, ai, bi, ci)) continue;
     if (bi == pivot) swap (ai, bi);
     if (ci == pivot) swap (ai, ci);
     assert (ai == pivot);
     for (auto j = i + 1; j != end; j++) {
       Clause * dj = *j;
-      int aj, bj, cj;
+      ILit aj, bj, cj;
       if (!get_ternary_clause (dj, aj, bj, cj)) continue;
       if (bj == pivot) swap (aj, bj);
       if (cj == pivot) swap (aj, cj);
       assert (aj == pivot);
-      if (abs (bi) == abs (cj)) swap (bj, cj);
-      if (abs (ci) == abs (cj)) continue;
+      if (abs (i_val(bi)) == abs (i_val(cj))) swap (bj, cj);
+      if (abs (i_val(ci)) == abs (i_val(cj))) continue;
       if (bi != -bj) continue;
       Clause * d1 = find_ternary_clause (-pivot, bi, -ci);
       if (!d1) continue;
@@ -370,7 +370,7 @@ void Internal::find_if_then_else (Eliminator & eliminator, int pivot) {
 
 // Find and extract clause.
 
-bool Internal::get_clause (Clause * c, vector<int> & l) {
+bool Internal::get_clause (Clause * c, vector<ILit> & l) {
   if (c->garbage) return false;
   l.clear ();
   for (const auto & lit : *c) {
@@ -382,7 +382,7 @@ bool Internal::get_clause (Clause * c, vector<int> & l) {
 
 // Check whether 'c' contains only the literals in 'l'.
 
-bool Internal::is_clause (Clause * c, const vector<int> & lits) {
+bool Internal::is_clause (Clause * c, const vector<ILit> & lits) {
   if (c->garbage) return false;
   int size = lits.size ();
   if (c->size < size) return false;
@@ -396,12 +396,12 @@ bool Internal::is_clause (Clause * c, const vector<int> & lits) {
   return found == size;
 }
 
-Clause * Internal::find_clause (const vector<int> & lits) {
-  int best = 0;
+Clause * Internal::find_clause (const vector<ILit> & lits) {
+  ILit best = 0;
   size_t len = 0;
   for (const auto & lit : lits) {
     size_t l = occs (lit).size ();
-    if (best && l >= len) continue;
+    if (i_val(best) && l >= len) continue;
     len = l, best = lit;
   }
   for (auto c : occs (best))
@@ -410,7 +410,7 @@ Clause * Internal::find_clause (const vector<int> & lits) {
   return 0;
 }
 
-void Internal::find_xor_gate (Eliminator & eliminator, int pivot) {
+void Internal::find_xor_gate (Eliminator & eliminator, ILit pivot) {
 
   if (!opts.elimxors) return;
 
@@ -420,7 +420,7 @@ void Internal::find_xor_gate (Eliminator & eliminator, int pivot) {
   if (val (pivot)) return;
   if (!eliminator.gates.empty ()) return;
 
-  vector<int> lits;
+  vector<ILit> lits;
 
   for (auto d : occs (pivot)) {
 
@@ -443,7 +443,7 @@ void Internal::find_xor_gate (Eliminator & eliminator, int pivot) {
         ;
       for (int j = 0; j < size; j++) {
         const unsigned bit = 1u << j;
-        int lit = lits[j];
+        ILit lit = lits[j];
         if ((prev & bit) != (signs & bit))
           lits[j] = lit = -lit;
       }
@@ -499,7 +499,7 @@ void Internal::find_xor_gate (Eliminator & eliminator, int pivot) {
 // might detect units, which are propagated.  This might assign the pivot or
 // even produce the empty clause.
 
-void Internal::find_gate_clauses (Eliminator & eliminator, int pivot)
+void Internal::find_gate_clauses (Eliminator & eliminator, ILit pivot)
 {
   if (!opts.elimsubst) return;
 

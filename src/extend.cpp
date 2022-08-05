@@ -43,14 +43,14 @@ void External::push_clause_on_extension_stack (Clause * c) {
     push_clause_literal_on_extension_stack (lit);
 }
 
-void External::push_clause_on_extension_stack (Clause * c, int pivot) {
+void External::push_clause_on_extension_stack (Clause * c, ILit pivot) {
   push_zero_on_extension_stack ();
   push_witness_literal_on_extension_stack (pivot);
   push_clause_on_extension_stack (c);
 }
 
 void
-External::push_binary_clause_on_extension_stack (int pivot, int other) {
+External::push_binary_clause_on_extension_stack (ILit pivot, ILit other) {
   internal->stats.weakened++;
   internal->stats.weakenedlen += 2;
   push_zero_on_extension_stack ();

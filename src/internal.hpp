@@ -100,7 +100,7 @@ struct Walker;
 
 struct CubesWithStatus {
   int status;
-  std::vector<std::vector<int>> cubes;
+  std::vector<std::vector<ILit>> cubes;
 };
 
 /*------------------------------------------------------------------------*/
@@ -166,7 +166,7 @@ struct Internal {
   ScoreSchedule scores;         // score based decision priority queue
   vector<double> stab;          // table of variable scores [1,max_var]
   vector<Var> vtab;             // variable table [1,max_var]
-  vector<int> parents;          // parent literals during probing
+  vector<ILit> parents;         // parent literals during probing
   vector<Flags> ftab;           // variable and literal flags
   vector<int64_t> btab;         // enqueue time stamps for queue
   vector<int64_t> gtab;         // time stamp table to recompute glue
@@ -182,17 +182,17 @@ struct Internal {
   size_t best_assigned;         // best maximum assigned ever
   size_t target_assigned;       // maximum assigned without conflict
   size_t no_conflict_until;     // largest trail prefix without conflict
-  vector<int> trail;            // currently assigned literals
-  vector<ELit> clause;           // simplified in parsing & learning
-  vector<int> assumptions;      // assumed literals
-  vector<int> original;         // original added literals
+  vector<ILit> trail;           // currently assigned literals
+  vector<ILit> clause;          // simplified in parsing & learning
+  vector<ILit> assumptions;     // assumed literals
+  vector<ILit> original;        // original added literals
   vector<int> levels;           // decision levels in learned clause
-  vector<int> analyzed;         // analyzed literals in 'analyze'
-  vector<int> minimized;        // removable or poison in 'minimize'
-  vector<int> shrinkable;       // removable or poison in 'shrink'
+  vector<ILit> analyzed;        // analyzed literals in 'analyze'
+  vector<ILit> minimized;       // removable or poison in 'minimize'
+  vector<ILit> shrinkable;      // removable or poison in 'shrink'
   Reap reap;                    // radix heap for shrink
 
-  vector<int> probes;           // remaining scheduled probes
+  vector<ILit> probes;          // remaining scheduled probes
   vector<clause_id_t> chain;    // clause IDs for derivation chain
   vector<Level> control;        // 'level + 1 == control.size ()'
   vector<Clause*> clauses;      // ordered collection of all clauses
@@ -246,7 +246,7 @@ struct Internal {
 
   void init_scores (int old_max_var, int new_max_var);
 
-  void add_original_lit (int lit);
+  void add_original_lit (ILit lit);
 
   // Get the next clause ID for a clause read from the input file.
   // Using this ensures all instances will use the same ID for each
@@ -270,7 +270,7 @@ struct Internal {
 
   // A variable is 'active' if it is not eliminated nor fixed.
   //
-  bool active (int lit) { return flags(lit).active (); }
+  bool active (ILit lit) { return flags(lit).active (); }
 
   int active () const {
     int res = stats.active;
@@ -287,7 +287,7 @@ struct Internal {
     return res;
   }
 
-  void reactivate (int lit);    // During 'restore'.
+  void reactivate (ILit lit);    // During 'restore'.
 
   // Currently remaining active redundant and irredundant clauses.
 
@@ -351,24 +351,24 @@ struct Internal {
   // Variable bumping through exponential VSIDS (EVSIDS) as in MiniSAT.
   //
   bool use_scores () const { return opts.score && stable; }
-  void bump_variable_score (int lit);
+  void bump_variable_score (ILit lit);
   void bump_variable_score_inc ();
   void rescale_variable_scores ();
 
   // Marking variables with a sign (positive or negative).
   //
-  signed char marked (int lit) const {
+  signed char marked (ILit lit) const {
     signed char res = marks [ vidx (lit) ];
-    if (lit < 0) res = -res;
+    if (i_val(lit) < 0) res = -res;
     return res;
   }
-  void mark (int lit) {
+  void mark (ILit lit) {
     assert (!marked (lit));
-    marks[vidx (lit)] = sign (lit);
+    marks[vidx (lit)] = sign (i_val(lit));
     assert (marked (lit) > 0);
     assert (marked (-lit) < 0);
   }
-  void unmark (int lit) {
+  void unmark (ILit lit) {
     marks [ vidx (lit) ] = 0;
     assert (!marked (lit));
   }
@@ -376,25 +376,25 @@ struct Internal {
   // Use only bits 6 and 7 to store the sign or zero.  The remaining
   // bits can be use as additional flags.
   //
-  signed char marked67 (int lit) const {
+  signed char marked67 (ILit lit) const {
     signed char res = marks [ vidx (lit) ] >> 6;
-    if (lit < 0) res = -res;
+    if (i_val(lit) < 0) res = -res;
     return res;
   }
-  void mark67 (int lit) {
+  void mark67 (ILit lit) {
     signed char & m = marks[vidx (lit)];
     const signed char mask = 0x3f;
 #ifndef NDEBUG
     const signed char bits = m & mask;
 #endif
-    m = (m & mask) | (sign (lit) << 6);
+    m = (m & mask) | (sign (i_val(lit)) << 6);
     assert (marked (lit) > 0);
     assert (marked (-lit) < 0);
     assert ((m & mask) == bits);
     assert (marked67 (lit) > 0);
     assert (marked67 (-lit) < 0);
   }
-  void unmark67 (int lit) {
+  void unmark67 (ILit lit) {
     signed char & m = marks[vidx (lit)];
     const signed char mask = 0x3f;
 #ifndef NDEBUG
@@ -404,7 +404,7 @@ struct Internal {
     assert ((m & mask) == bits);
   }
 
-  void unmark (vector<int> & lits) {
+  void unmark (vector<ILit> & lits) {
     for (const auto & lit : lits)
       unmark (lit);
   }
@@ -413,17 +413,17 @@ struct Internal {
   // (unsigned) marking bits.  Currently we only use the least significant
   // bit in 'condition' to mark variables in the conditional part.
   //
-  bool getbit (int lit, int bit) const {
+  bool getbit (ILit lit, int bit) const {
     assert (0 <= bit), assert (bit < 6);
     return marks[vidx (lit)] & (1<<bit);
   }
-  void setbit (int lit, int bit) {
+  void setbit (ILit lit, int bit) {
     assert (0 <= bit), assert (bit < 6);
     assert (!getbit (lit, bit));
     marks[vidx (lit)] |= (1<<bit);
     assert (getbit (lit, bit));
   }
-  void unsetbit (int lit, int bit) {
+  void unsetbit (ILit lit, int bit) {
     assert (0 <= bit), assert (bit < 6);
     assert (getbit (lit, bit));
     marks[vidx (lit)] &= ~(1<<bit);
@@ -432,14 +432,14 @@ struct Internal {
 
   // Marking individual literals.
   //
-  bool marked2 (int lit) const {
+  bool marked2 (ILit lit) const {
     unsigned res = marks [ vidx (lit) ];
     assert (res <= 3);
-    unsigned bit = bign (lit);
+    unsigned bit = bign (i_val(lit));
     return (res & bit) != 0;
   }
-  void mark2 (int lit) {
-    marks[vidx (lit)] |= bign (lit);
+  void mark2 (ILit lit) {
+    marks[vidx (lit)] |= bign (i_val(lit));
     assert (marked2 (lit));
   }
 
@@ -454,7 +454,7 @@ struct Internal {
   // Watch literal 'lit' in clause with blocking literal 'blit'.
   // Inlined here, since it occurs in the tight inner loop of 'propagate'.
   //
-  inline void watch_literal (int lit, int blit, Clause * c) {
+  inline void watch_literal (ILit lit, ILit blit, Clause * c) {
     assert (lit != blit);
     Watches & ws = watches (lit);
     ws.push_back (Watch (blit, c));
@@ -465,15 +465,15 @@ struct Internal {
   // of a clause and during connecting back all watches after preprocessing.
   //
   inline void watch_clause (Clause * c) {
-    const int l0 = c->literals[0];
-    const int l1 = c->literals[1];
+    const ILit l0 = c->literals[0];
+    const ILit l1 = c->literals[1];
     watch_literal (l0, l1, c);
     watch_literal (l1, l0, c);
   }
 
   inline void unwatch_clause (Clause * c) {
-    const int l0 = c->literals[0];
-    const int l1 = c->literals[1];
+    const ILit l0 = c->literals[0];
+    const ILit l1 = c->literals[1];
     remove_watch (watches (l0), c);
     remove_watch (watches (l1), c);
   }
@@ -491,16 +491,16 @@ struct Internal {
     LOG ("queue unassigned now %d bumped %" PRId64 "", idx, btab[idx]);
   }
 
-  void bump_queue (int idx);
+  void bump_queue (ILit);
 
   // Mark (active) variables as eliminated, substituted, pure or fixed,
   // which turns them into inactive variables.
   //
-  void mark_eliminated (int);
-  void mark_substituted (int);
-  void mark_active (int);
-  void mark_fixed (int);
-  void mark_pure (int);
+  void mark_eliminated (ILit);
+  void mark_substituted (ILit);
+  void mark_active (ILit);
+  void mark_fixed (ILit);
+  void mark_pure (ILit);
 
   // Managing clauses in 'clause.cpp'.  Without explicit 'Clause' argument
   // these functions work on the global temporary 'clause'.
@@ -512,21 +512,21 @@ struct Internal {
   void shrink_and_minimize_clause ();
   void reset_shrinkable();
   void mark_shrinkable_as_removable(int, std::vector<int>::size_type);
-  int shrink_literal(int, int, unsigned);
-  unsigned shrunken_block_uip(int, int, std::vector<int>::reverse_iterator &,
-                              std::vector<int>::reverse_iterator &,
-                              std::vector<int>::size_type, const int);
-  void shrunken_block_no_uip(const std::vector<int>::reverse_iterator&, const std::vector<int>::reverse_iterator&, unsigned&, const int);
-  void push_literals_of_block(const std::vector<int>::reverse_iterator&, const std::vector<int>::reverse_iterator&, int, unsigned);
-  unsigned shrink_next(unsigned&, unsigned&);
-  std::vector<int>::reverse_iterator minimize_and_shrink_block(std::vector<int>::reverse_iterator&, unsigned int&, unsigned int&, const int);
-  unsigned shrink_block(std::vector<int>::reverse_iterator&, std::vector<int>::reverse_iterator&, int, unsigned&, unsigned&, const int, unsigned);
-  unsigned shrink_along_reason(int, int, bool, bool&, unsigned);
+  int shrink_literal(ILit, int, unsigned);
+  unsigned shrunken_block_uip(ILit, int, std::vector<ILit>::reverse_iterator &,
+                              std::vector<ILit>::reverse_iterator &,
+                              std::vector<ILit>::size_type, const ILit);
+  void shrunken_block_no_uip(const std::vector<ILit>::reverse_iterator&, const std::vector<ILit>::reverse_iterator&, unsigned&, const ILit);
+  void push_literals_of_block(const std::vector<ILit>::reverse_iterator&, const std::vector<ILit>::reverse_iterator&, int, unsigned);
+  ILit shrink_next(unsigned&, unsigned&);
+  std::vector<ILit>::reverse_iterator minimize_and_shrink_block(std::vector<ILit>::reverse_iterator&, unsigned int&, unsigned int&, const ILit);
+  unsigned shrink_block(std::vector<ILit>::reverse_iterator&, std::vector<ILit>::reverse_iterator&, int, unsigned&, unsigned&, const ILit, unsigned);
+  unsigned shrink_along_reason(ILit, int, bool, bool&, unsigned);
 
   void deallocate_clause(Clause *);
   void delete_clause (Clause *);
   void mark_garbage (Clause *);
-  void assign_original_unit (clause_id_t, int);
+  void assign_original_unit (clause_id_t, ILit);
   void add_new_original_clause (clause_id_t);
   Clause * new_learned_redundant_clause (int glue);
   Clause * new_hyper_binary_resolved_clause (bool red, int glue);
@@ -535,45 +535,45 @@ struct Internal {
 
   // Forward reasoning through propagation in 'propagate.cpp'.
   //
-  int assignment_level (int lit, Clause*);
-  void search_assign (int lit, Clause *);
-  void search_assign_driving (int lit, Clause * reason);
-  void search_assume_decision (int decision);
-  void assign_unit (int lit);
+  int assignment_level (ILit lit, Clause*);
+  void search_assign (ILit lit, Clause *);
+  void search_assign_driving (ILit lit, Clause * reason);
+  void search_assume_decision (ILit decision);
+  void assign_unit (ILit lit);
   bool propagate ();
 
   // Undo and restart in 'backtrack.cpp'.
   //
-  void unassign (int lit);
+  void unassign (ILit lit);
   void update_target_and_best ();
   void backtrack (int target_level = 0);
 
   // Minimized learned clauses in 'minimize.cpp'.
   //
-  bool minimize_literal (int lit, int depth = 0);
+  bool minimize_literal (ILit lit, int depth = 0);
   void minimize_clause ();
 
   // Learning from conflicts in 'analyze.cc'.
   //
   void learn_empty_clause ();
-  void learn_unit_clause (int lit){ learn_unit_clause(0, lit, false); };
-  void learn_unit_clause (clause_id_t id, int lit, bool is_imported);
-  void bump_variable (int lit);
+  void learn_unit_clause (ILit lit){ learn_unit_clause(0, lit, false); };
+  void learn_unit_clause (clause_id_t id, ILit lit, bool is_imported);
+  void bump_variable (ILit lit);
   void bump_variables ();
   int recompute_glue (Clause *);
   void bump_clause (Clause *);
   void clear_analyzed_literals ();
   void clear_analyzed_levels ();
   void clear_minimized_literals ();
-  bool bump_also_reason_literal (int lit);
-  void bump_also_reason_literals (int lit, int limit);
+  bool bump_also_reason_literal (ILit lit);
+  void bump_also_reason_literals (ILit lit, int limit);
   void bump_also_all_reason_literals ();
-  void analyze_literal (int lit, int & open);
-  void analyze_reason (int lit, Clause *, int & open);
+  void analyze_literal (ILit lit, int & open);
+  void analyze_reason (ILit lit, Clause *, int & open);
   Clause * new_driving_clause (const int glue, int & jump);
-  int find_conflict_level (int & forced);
+  int find_conflict_level (ILit & forced);
   int determine_actual_backtrack_level (int jump);
-  void justify_lit (int lit);
+  void justify_lit (ILit lit);
   void build_chain ();
   void analyze ();
   void iterate ();       // report learned unit clause
@@ -650,8 +650,8 @@ struct Internal {
   void remove_falsified_literals (Clause *);
   void mark_satisfied_clauses_as_garbage ();
   void copy_clause (Clause *);
-  void flush_watches (int lit, Watches &);
-  size_t flush_occs (int lit);
+  void flush_watches (ILit lit, Watches &);
+  size_t flush_occs (ILit lit);
   void flush_all_occs_and_watches ();
   void update_reason_references ();
   void copy_non_garbage_clauses ();
@@ -681,9 +681,9 @@ struct Internal {
   // Regular forward subsumption checking in 'subsume.cpp'.
   //
   bool subsuming ();
-  void strengthen_clause (Clause *, int);
+  void strengthen_clause (Clause *, ILit);
   void subsume_clause (Clause * subsuming, Clause * subsumed);
-  int subsume_check (Clause * subsuming, Clause * subsumed);
+  ILit subsume_check (Clause * subsuming, Clause * subsumed);
   int try_to_subsume_clause (Clause *, vector<Clause*> & shrunken);
   void reset_subsume_bits ();
   bool subsume_round ();
@@ -691,11 +691,11 @@ struct Internal {
 
   // Covered clause elimination of large clauses.
   //
-  void covered_literal_addition (int lit, Coveror &);
-  void asymmetric_literal_addition (int lit, Coveror &);
-  void cover_push_extension (int lit, Coveror &);
-  bool cover_propagate_asymmetric (int lit, Clause * ignore, Coveror &);
-  bool cover_propagate_covered (int lit, Coveror &);
+  void covered_literal_addition (ILit lit, Coveror &);
+  void asymmetric_literal_addition (ILit lit, Coveror &);
+  void cover_push_extension (ILit lit, Coveror &);
+  bool cover_propagate_asymmetric (ILit lit, Clause * ignore, Coveror &);
+  bool cover_propagate_covered (ILit lit, Coveror &);
   bool cover_clause (Clause * c, Coveror &);
   int64_t cover_round ();
   bool cover ();
@@ -705,11 +705,11 @@ struct Internal {
   void flush_vivification_schedule (Vivifier &);
   bool consider_to_vivify_clause (Clause * candidate, bool redundant_mode);
   void vivify_analyze_redundant (Vivifier &, Clause * start, bool &);
-  bool vivify_all_decisions (Clause * candidate, int subsume);
-  void vivify_post_process_analysis (Clause * candidate, int subsume);
+  bool vivify_all_decisions (Clause * candidate, ILit subsume);
+  void vivify_post_process_analysis (Clause * candidate, ILit subsume);
   void vivify_strengthen (Clause * candidate);
-  void vivify_assign (int lit, Clause *);
-  void vivify_assume (int lit);
+  void vivify_assign (ILit lit, Clause *);
+  void vivify_assume (ILit lit);
   bool vivify_propagate ();
   void vivify_clause (Vivifier &, Clause * candidate);
   void vivify_round (bool redundant_mode, int64_t delta);
@@ -747,24 +747,24 @@ struct Internal {
   // A similar technique is used to reduce the effort in hyper ternary
   // resolution to focus on variables in new ternary clauses.
   //
-  void mark_subsume (int lit) {
+  void mark_subsume (ILit lit) {
     Flags & f = flags (lit);
     if (f.subsume) return;
     LOG ("marking %d as subsuming literal candidate", abs (lit));
     stats.mark.subsume++;
     f.subsume = true;
   }
-  void mark_ternary (int lit) {
+  void mark_ternary (ILit lit) {
     Flags & f = flags (lit);
     if (f.ternary) return;
     LOG ("marking %d as ternary resolution literal candidate", abs (lit));
     stats.mark.ternary++;
     f.ternary = true;
   }
-  void mark_added (int lit, int size, bool redundant);
+  void mark_added (ILit lit, int size, bool redundant);
   void mark_added (Clause *);
 
-  bool marked_subsume(int lit) const { return flags(lit).subsume; }
+  bool marked_subsume(ILit lit) const { return flags(lit).subsume; }
 
     // If irredundant clauses are removed or literals in clauses are removed,
     // then variables in such clauses should be reconsidered to be eliminated
@@ -773,7 +773,7 @@ struct Internal {
     // clause elimination it is better to have a more precise signed version,
     // which allows to independently mark positive and negative literals.
     //
-    void mark_elim(int lit) {
+    void mark_elim(ILit lit) {
       Flags &f = flags(lit);
       if (f.elim)
         return;
@@ -781,84 +781,85 @@ struct Internal {
       stats.mark.elim++;
       f.elim = true;
     }
-    void mark_block(int lit) {
+    void mark_block(ILit lit) {
       Flags &f = flags(lit);
-      const unsigned bit = bign(lit);
+      const unsigned bit = bign(i_val(lit));
       if (f.block & bit)
         return;
       LOG("marking %d as blocking literal candidate", lit);
       stats.mark.block++;
       f.block |= bit;
     }
-    void mark_removed(int lit) {
+    void mark_removed(ILit lit) {
       mark_elim(lit);
-      mark_block(-lit);
+      mark_block(i_neg(lit));
     }
-    void mark_removed(Clause *, int except = 0);
+    void mark_removed(Clause *, ILit except);
+    void mark_removed(Clause *c) { mark_removed(c, 0); }
 
     // The following two functions are only used for testing & debugging.
 
-    bool marked_block(int lit) const {
+    bool marked_block(ILit lit) const {
       const Flags &f = flags(lit);
-      const unsigned bit = bign(lit);
+      const unsigned bit = bign(i_val(lit));
       return (f.block & bit) != 0;
     }
-    void unmark_block(int lit) {
+    void unmark_block(ILit lit) {
       Flags &f = flags(lit);
-      const unsigned bit = bign(lit);
+      const unsigned bit = bign(i_val(lit));
       f.block &= ~bit;
     }
 
     // During scheduling literals for blocked clause elimination we skip those
     // literals which occur negated in a too large clause.
     //
-    void mark_skip(int lit) {
+    void mark_skip(ILit lit) {
       Flags &f = flags(lit);
-      const unsigned bit = bign(lit);
+      const unsigned bit = bign(i_val(lit));
       if (f.skip & bit)
         return;
       LOG("marking %d to be skipped as blocking literal", lit);
       f.skip |= bit;
     }
-    bool marked_skip(int lit) {
+    bool marked_skip(ILit lit) {
       const Flags &f = flags(lit);
-      const unsigned bit = bign(lit);
+      const unsigned bit = bign(i_val(lit));
       return (f.skip & bit) != 0;
     }
 
     // Blocked Clause elimination in 'block.cpp'.
     //
-    bool is_blocked_clause(Clause * c, int pivot);
+    bool is_blocked_clause(Clause * c, ILit pivot);
     void block_schedule(Blocker &);
-    size_t block_candidates(Blocker &, int lit);
-    Clause *block_impossible(Blocker &, int lit);
-    void block_literal_with_at_least_two_negative_occs(Blocker &, int lit);
-    void block_literal_with_one_negative_occ(Blocker &, int lit);
-    void block_pure_literal(Blocker &, int lit);
-    void block_reschedule_clause(Blocker &, int lit, Clause *);
-    void block_reschedule(Blocker &, int lit);
-    void block_literal(Blocker &, int lit);
+    size_t block_candidates(Blocker &, ILit lit);
+    Clause *block_impossible(Blocker &, ILit lit);
+    void block_literal_with_at_least_two_negative_occs(Blocker &, ILit lit);
+    void block_literal_with_one_negative_occ(Blocker &, ILit lit);
+    void block_pure_literal(Blocker &, ILit lit);
+    void block_reschedule_clause(Blocker &, ILit lit, Clause *);
+    void block_reschedule(Blocker &, ILit lit);
+    void block_literal(Blocker &, ILit lit);
     bool block();
 
     // Find gates in 'gates.cpp' for bounded variable substitution.
     //
-    int second_literal_in_binary_clause(Eliminator &, Clause *, int first);
-    void mark_binary_literals(Eliminator &, int pivot);
-    void find_and_gate(Eliminator &, int pivot);
-    void find_equivalence(Eliminator &, int pivot);
+    int second_literal_in_binary_clause(Eliminator &, Clause *, ILit first);
+    void mark_binary_literals(Eliminator &, ILit pivot);
+    void find_and_gate(Eliminator &, ILit pivot);
+    void find_equivalence(Eliminator &, ILit pivot);
 
-    bool get_ternary_clause(Clause *, int &, int &, int &);
-    bool match_ternary_clause(Clause *, int, int, int);
-    Clause *find_ternary_clause(int, int, int);
+    bool get_ternary_clause(Clause *, ILit &, ILit &, ILit &);
+    bool match_ternary_clause(Clause *, ILit, ILit, ILit);
+    Clause *find_ternary_clause(ILit, ILit, ILit);
 
-    bool get_clause(Clause *, vector<int> &);
-    bool is_clause(Clause *, const vector<int> &);
-    Clause *find_clause(const vector<int> &);
-    void find_xor_gate(Eliminator &, int pivot);
+    bool get_clause(Clause *, vector<ILit> &);
+    bool is_clause(Clause *, const vector<ILit> &);
+    Clause *find_clause(const vector<ILit> &);
+    void find_xor_gate(Eliminator &, ILit pivot);
 
-    void find_if_then_else(Eliminator &, int pivot);
+    void find_if_then_else(Eliminator &, ILit pivot);
 
-    void find_gate_clauses(Eliminator &, int pivot);
+    void find_gate_clauses(Eliminator &, ILit pivot);
     void unmark_gate_clauses(Eliminator &);
 
     // Bounded variable elimination in 'elim.cpp'.
@@ -867,35 +868,36 @@ struct Internal {
     double compute_elim_score(unsigned lit);
     void mark_redundant_clauses_with_eliminated_variables_as_garbage();
     void unmark_binary_literals(Eliminator &);
-    bool resolve_clauses(Eliminator &, Clause *, int pivot, Clause *, bool);
-    void mark_eliminated_clauses_as_garbage(Eliminator &, int pivot);
-    bool elim_resolvents_are_bounded(Eliminator &, int pivot);
-    void elim_update_removed_lit(Eliminator &, int lit);
-    void elim_update_removed_clause(Eliminator &, Clause *, int except = 0);
+    bool resolve_clauses(Eliminator &, Clause *, ILit pivot, Clause *, bool);
+    void mark_eliminated_clauses_as_garbage(Eliminator &, ILit pivot);
+    bool elim_resolvents_are_bounded(Eliminator &, ILit pivot);
+    void elim_update_removed_lit(Eliminator &, ILit lit);
+    void elim_update_removed_clause(Eliminator &, Clause *, ILit except);
+    void elim_update_removed_clause(Eliminator &e, Clause *c){ elim_update_removed_clause(e, c, 0); }
     void elim_update_added_clause(Eliminator &, Clause *);
-    void elim_add_resolvents(Eliminator &, int pivot);
+    void elim_add_resolvents(Eliminator &, ILit pivot);
     void elim_backward_clause(Eliminator &, Clause *);
     void elim_backward_clauses(Eliminator &);
-    void elim_propagate(Eliminator &, int unit);
-    void elim_on_the_fly_self_subsumption(Eliminator &, Clause *, int);
-    void try_to_eliminate_variable(Eliminator &, int pivot);
+    void elim_propagate(Eliminator &, ILit unit);
+    void elim_on_the_fly_self_subsumption(Eliminator &, Clause *, ILit);
+    void try_to_eliminate_variable(Eliminator &, ILit pivot);
     void increase_elimination_bound();
     int elim_round(bool &completed);
     void elim(bool update_limits = true);
 
-    void inst_assign(int lit);
+    void inst_assign(ILit lit);
     bool inst_propagate();
     void collect_instantiation_candidates(Instantiator &);
-    bool instantiate_candidate(int lit, Clause *);
+    bool instantiate_candidate(ILit lit, Clause *);
     void instantiate(Instantiator &);
 
     // Hyper ternary resolution.
     //
-    bool ternary_find_binary_clause(int, int);
-    bool ternary_find_ternary_clause(int, int, int);
+    bool ternary_find_binary_clause(ILit, ILit);
+    bool ternary_find_ternary_clause(ILit, ILit, ILit);
     Clause *new_hyper_ternary_resolved_clause(bool red);
-    bool hyper_ternary_resolve(Clause *, int, Clause *);
-    void ternary_lit(int pivot, int64_t &steps, int64_t &htrs);
+    bool hyper_ternary_resolve(Clause *, ILit, Clause *);
+    void ternary_lit(ILit pivot, int64_t &steps, int64_t &htrs);
     void ternary_idx(int idx, int64_t &steps, int64_t &htrs);
     bool ternary_round(int64_t & steps, int64_t & htrs);
     bool ternary();
@@ -903,21 +905,21 @@ struct Internal {
     // Probing in 'probe.cpp'.
     //
     bool probing();
-    void failed_literal(int lit);
-    void probe_assign_unit(int lit);
-    void probe_assign_decision(int lit);
-    void probe_assign(int lit, int parent);
+    void failed_literal(ILit lit);
+    void probe_assign_unit(ILit lit);
+    void probe_assign_decision(ILit lit);
+    void probe_assign(ILit lit, ILit parent);
     void mark_duplicated_binary_clauses_as_garbage();
-    int get_parent_reason_literal(int lit);
-    void set_parent_reason_literal(int lit, int reason);
-    int probe_dominator(int a, int b);
-    int hyper_binary_resolve(Clause *);
+    ILit get_parent_reason_literal(ILit lit);
+    void set_parent_reason_literal(ILit lit, ILit reason);
+    ILit probe_dominator(ILit a, ILit b);
+    ILit hyper_binary_resolve(Clause *);
     void probe_propagate2();
     bool probe_propagate();
-    bool is_binary_clause(Clause * c, int &, int &);
+    bool is_binary_clause(Clause * c, ILit &, ILit &);
     void generate_probes();
     void flush_probes();
-    int next_probe();
+    ILit next_probe();
     bool probe_round();
     void probe(bool update_limits = true);
 
@@ -925,9 +927,9 @@ struct Internal {
     //
     void walk_save_minimum(Walker &);
     Clause *walk_pick_clause(Walker &);
-    unsigned walk_break_value(int lit);
-    int walk_pick_lit(Walker &, Clause *);
-    void walk_flip_lit(Walker &, int lit);
+    unsigned walk_break_value(ILit lit);
+    ILit walk_pick_lit(Walker &, Clause *);
+    void walk_flip_lit(Walker &, ILit lit);
     int walk_round(int64_t limit, bool prev);
     void walk();
 
@@ -939,20 +941,20 @@ struct Internal {
 
     // Assumption handling.
     //
-    void assume(int);         // New assumption literal.
+    void assume(ILit);        // New assumption literal.
     void reset_assumptions(); // Reset after 'solve' call.
     void reset_limits();      // Reset after 'solve' call.
     void failing();           // Prepare failed assumptions.
 
-    bool failed(int lit) { // Literal failed assumption?
+    bool failed(ILit lit) { // Literal failed assumption?
       Flags &f = flags(lit);
-      const unsigned bit = bign(lit);
+      const unsigned bit = bign(i_val(lit));
       return (f.failed & bit) != 0;
     }
 
-    bool assumed(int lit) { // Marked as assumption.
+    bool assumed(ILit lit) { // Marked as assumption.
       Flags &f = flags(lit);
-      const unsigned bit = bign(lit);
+      const unsigned bit = bign(i_val(lit));
       return (f.assumed & bit) != 0;
     }
 
@@ -964,22 +966,22 @@ struct Internal {
 
     // Forcing decision variables to a certain phase.
     //
-    void phase(int lit);
-    void unphase(int lit);
+    void phase(ILit lit);
+    void unphase(ILit lit);
 
     // Globally blocked clause elimination.
     //
-    bool is_autarky_literal(int lit) const;
-    bool is_conditional_literal(int lit) const;
-    void mark_as_conditional_literal(int lit);
-    void unmark_as_conditional_literal(int lit);
+    bool is_autarky_literal(ILit lit) const;
+    bool is_conditional_literal(ILit lit) const;
+    void mark_as_conditional_literal(ILit lit);
+    void unmark_as_conditional_literal(ILit lit);
     //
-    bool is_in_candidate_clause(int lit) const;
-    void mark_in_candidate_clause(int lit);
-    void unmark_in_candidate_clause(int lit);
+    bool is_in_candidate_clause(ILit lit) const;
+    void mark_in_candidate_clause(ILit lit);
+    void unmark_in_candidate_clause(ILit lit);
     //
-    void condition_assign(int lit);
-    void condition_unassign(int lit);
+    void condition_assign(ILit lit);
+    void condition_unassign(ILit lit);
     //
     bool conditioning();
     long condition_round(long unassigned_literal_propagation_limit);
@@ -1049,9 +1051,9 @@ struct Internal {
     //
     ILit lookahead();
     CubesWithStatus generate_cubes(int, int);
-    int most_occurring_literal();
-    int lookahead_probing();
-    int lookahead_next_probe();
+    ILit most_occurring_literal();
+    ILit lookahead_probing();
+    ILit lookahead_next_probe();
     void lookahead_flush_probes();
     void lookahead_generate_probes();
     std::vector<int> lookahead_populate_locc();
@@ -1088,14 +1090,14 @@ struct Internal {
   // It is not that time critical and also needs to check the decision level
   // of the variable anyhow.
   //
-  int fixed (int lit) {
-    assert (-max_var <= lit);
-    assert (lit);
-    assert (lit <= max_var);
+  int fixed (ILit lit) {
+    assert (-max_var <= i_val(lit));
+    assert (i_val(lit));
+    assert (i_val(lit) <= max_var);
     const int idx = vidx (lit);
     int res = vals[idx];
     if (res && vtab[idx].level) res = 0;
-    if (lit < 0) res = -res;
+    if (i_val(lit) < 0) res = -res;
     return res;
   }
 

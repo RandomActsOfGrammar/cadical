@@ -145,15 +145,15 @@ void Internal::mark_useless_redundant_clauses_as_garbage () {
 
 bool Internal::propagate_out_of_order_units () {
   if (!level) return true;
-  int oou = 0;
-  for (size_t i = control[1].trail; !oou && i < trail.size (); i++) {
-    const int lit = trail[i];
+  ILit oou = 0;
+  for (size_t i = control[1].trail; !i_val(oou) && i < trail.size (); i++) {
+    const ILit lit = trail[i];
     assert (val (lit) > 0);
     if (var (lit).level) continue;
     LOG ("found out-of-order assigned unit %d", oou);
     oou = lit;
   }
-  if (!oou) return true;
+  if (!i_val(oou)) return true;
   assert (opts.chrono);
   backtrack (0);
   if (propagate ()) return true;

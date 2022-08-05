@@ -16,22 +16,22 @@ inline unsigned Checker::l2u (int lit) {
    return res;
 }
 
-inline signed char Checker::val (int lit) {
-  assert (lit);
-  assert (lit != INT_MIN);
-  assert (abs (lit) < size_vars);
-  assert (vals[lit] == -vals[-lit]);
-  return vals[lit];
+inline signed char Checker::val (ELit lit) {
+  assert (e_val(lit));
+  assert (e_val(lit) != INT_MIN);
+  assert (abs (e_val(lit)) < size_vars);
+  assert (vals[e_val(lit)] == -vals[-e_val(lit)]);
+  return vals[e_val(lit)];
 }
 
-signed char & Checker::mark (int lit) {
-  const unsigned u = l2u (lit);
+signed char & Checker::mark (ELit lit) {
+  const unsigned u = l2u (e_val(lit));
   assert (u < marks.size ());
   return marks[u];
 }
 
-inline CheckerWatcher & Checker::watcher (int lit) {
-  const unsigned u = l2u (lit);
+inline CheckerWatcher & Checker::watcher (ELit lit) {
+  const unsigned u = l2u (e_val(lit));
   assert (u < watchers.size ());
   return watchers[u];
 }
@@ -46,7 +46,7 @@ CheckerClause * Checker::new_clause () {
   res->next = 0;
   res->hash = last_hash;
   res->size = size;
-  int * literals = res->literals, * p = literals;
+  ELit * literals = res->literals, * p = literals;
   for (const auto & lit : simplified)
     *p++ = lit;
   num_clauses++;
@@ -54,10 +54,10 @@ CheckerClause * Checker::new_clause () {
   // First two literals are used as watches and should not be false.
   //
   for (unsigned i = 0; i < 2; i++) {
-    int lit = literals[i];
+    ELit lit = literals[i];
     if (!val (lit)) continue;
     for (unsigned j = i + 1; j < size; j++) {
-      int other = literals[j];
+      ELit other = literals[j];
       if (val (other)) continue;
       swap (literals[i], literals[j]);
       break;
@@ -230,26 +230,26 @@ void Checker::enlarge_vars (int64_t idx) {
   size_vars = new_size_vars;
 }
 
-inline void Checker::import_literal (int lit) {
+inline void Checker::import_literal (ELit lit) {
   assert (lit);
   assert (lit != INT_MIN);
-  int idx = abs (lit);
+  int idx = abs (e_val(lit));
   if (idx >= size_vars) enlarge_vars (idx);
   simplified.push_back (lit);
   unsimplified.push_back (lit);
 }
 
-void Checker::import_clause (const vector<int> & c) {
+void Checker::import_clause (const vector<ELit> & c) {
   for (const auto & lit : c)
     import_literal (lit);
 }
 
 struct lit_smaller {
-  bool operator () (int a, int b) const {
-    int c = abs (a), d = abs (b);
+  bool operator () (ELit a, ELit b) const {
+    int c = abs (e_val(a)), d = abs (e_val(b));
     if (c < d) return true;
     if (c > d) return false;
-    return a < b;
+    return e_val(a) < e_val(b);
   }
 };
 
@@ -257,9 +257,9 @@ bool Checker::tautological () {
   sort (simplified.begin (), simplified.end (), lit_smaller ());
   const auto end = simplified.end ();
   auto j = simplified.begin ();
-  int prev = 0;
+  ELit prev = 0;
   for (auto i = j; i != end; i++) {
-    int lit = *i;
+    ELit lit = *i;
     if (lit == prev) continue;          // duplicated literal
     if (lit == -prev) return true;      // tautological clause
     const signed char tmp = val (lit);
@@ -290,8 +290,8 @@ uint64_t Checker::compute_hash (int64_t id) {
   unsigned i = 0, j = 0;
   uint64_t tmp = 0;
   for (i = 0; i < simplified.size (); i++) {
-    int lit = simplified[i];
-    tmp += nonces[j++] * (uint64_t) lit;
+    ELit lit = simplified[i];
+    tmp += nonces[j++] * (uint64_t) e_val(lit);
     if (j == num_nonces) j = 0;
   }
   return last_hash = tmp;
@@ -319,7 +319,7 @@ CheckerClause ** Checker::find (int64_t id) {
   for (res = clauses + h; (c = *res); res = &c->next) {
     if (c->hash == hash && c->size == size) {
       bool found = true;
-      const int * literals = c->literals;
+      const ELit * literals = c->literals;
       for (unsigned i = 0; found && i != size; i++)
         found = mark (literals[i]);
       if (found) break;
@@ -341,14 +341,14 @@ void Checker::insert (int64_t id) {
 
 /*------------------------------------------------------------------------*/
 
-inline void Checker::assign (int lit) {
+inline void Checker::assign (ELit lit) {
   assert (!val (lit));
-  vals[lit] = 1;
-  vals[-lit] = -1;
+  vals[e_val(lit)] = 1;
+  vals[-e_val(lit)] = -1;
   trail.push_back (lit);
 }
 
-inline void Checker::assume (int lit) {
+inline void Checker::assume (ELit lit) {
   signed char tmp = val (lit);
   if (tmp > 0) return;
   assert (!tmp);
@@ -361,10 +361,10 @@ void Checker::backtrack (unsigned previously_propagated) {
   assert (previously_propagated <= trail.size ());
 
   while (trail.size () > previously_propagated) {
-    int lit = trail.back ();
+    ELit lit = trail.back ();
     assert (val (lit) > 0);
     assert (val (-lit) < 0);
-    vals[lit] = vals[-lit] = 0;
+    vals[e_val(lit)] = vals[-e_val(lit)] = 0;
     trail.pop_back ();
   }
 
@@ -381,7 +381,7 @@ void Checker::backtrack (unsigned previously_propagated) {
 bool Checker::propagate () {
   bool res = true;
   while (res && next_to_propagate < trail.size ()) {
-    int lit = trail[next_to_propagate++];
+    ELit lit = trail[next_to_propagate++];
     stats.propagations++;
     assert (val (lit) > 0);
     assert (abs (lit) < size_vars);
@@ -390,7 +390,7 @@ bool Checker::propagate () {
     auto j = ws.begin (), i = j;
     for (; res && i != end; i++) {
       CheckerWatch & w = *j++ = *i;
-      const int blit = w.blit;
+      const ELit blit = w.blit;
       assert (blit != -lit);
       const signed char blit_val = val (blit);
       if (blit_val > 0) continue;
@@ -403,19 +403,19 @@ bool Checker::propagate () {
         CheckerClause * c = w.clause;
         if (!c->size) { j--; continue; }        // skip garbage clauses
         assert (size == c->size);
-        int * lits = c->literals;
-        int other = lits[0]^lits[1]^(-lit);
+        ELit * lits = c->literals;
+        ELit other = e_val(lits[0])^e_val(lits[1])^e_val(-lit);
         assert (other != -lit);
         signed char other_val = val (other);
         if (other_val > 0) { j[-1].blit = other; continue; }
         lits[0] = other, lits[1] = -lit;
         unsigned k;
-        int replacement = 0;
+        ELit replacement = 0;
         signed char replacement_val = -1;
         for (k = 2; k < size; k++)
           if ((replacement_val = val (replacement = lits[k])) >= 0)
             break;
-        if (replacement_val >= 0) {
+        if (e_val(replacement_val) >= 0) {
           watcher (replacement).push_back (CheckerWatch (-lit, c));
           swap (lits[1], lits[k]);
           j--;
@@ -436,14 +436,14 @@ bool Checker::propagate_chain (const vector<int64_t> * chain) {
     auto c = find_id (cid);
     if (!*c) continue;
     int size = (*c)->size;
-    int * lits = (*c)->literals;
-    int unit = 0;
+    ELit * lits = (*c)->literals;
+    ELit unit = 0;
     for (int k = 0; k < size; k++)
       if (val (lits[k]) >= 0) {
-        if (unit) return false;
+        if (e_val(unit)) return false;
         unit = lits[k];
       }
-    if (!unit) return true;
+    if (!e_val(unit)) return true;
     assign (unit);
   }
   return false;
@@ -467,22 +467,22 @@ void Checker::add_clause (int64_t id, const char * type) {
   (void) type;
 #endif
 
-  int unit = 0;
+  ELit unit = 0;
   for (const auto & lit : simplified) {
     const signed char tmp = val (lit);
     if (tmp < 0) continue;
     assert (!tmp);
-    if (unit) { unit = INT_MIN; break; }
+    if (e_val(unit)) { unit = INT_MIN; break; }
     unit = lit;
   }
 
   if (simplified.empty ()) {
     LOG ("CHECKER added empty %s clause", type);
     inconsistent = true;
-  } if (!unit) {
+  } if (!e_val(unit)) {
     LOG ("CHECKER added and checked falsified %s clause", type);
     inconsistent = true;
-  } else if (unit != INT_MIN) {
+  } else if (e_val(unit) != INT_MIN) {
     LOG ("CHECKER added and checked %s unit clause %d", type, unit);
     assign (unit);
     stats.units++;
@@ -493,7 +493,7 @@ void Checker::add_clause (int64_t id, const char * type) {
   } else insert (id);
 }
 
-void Checker::add_original_clause (int64_t id, const vector<int> & c) {
+void Checker::add_original_clause (int64_t id, const vector<ELit> & c) {
   if (inconsistent) return;
   START (checking);
   LOG (c, "CHECKER addition of original clause");
@@ -508,7 +508,7 @@ void Checker::add_original_clause (int64_t id, const vector<int> & c) {
   STOP (checking);
 }
 
-void Checker::add_derived_clause (int64_t id, const vector<int64_t> * chain, const vector<int> & c) {
+void Checker::add_derived_clause (int64_t id, const vector<int64_t> * chain, const vector<ELit> & c) {
   if (inconsistent) return;
   START (checking);
   LOG (c, "CHECKER addition of derived clause");
@@ -521,7 +521,7 @@ void Checker::add_derived_clause (int64_t id, const vector<int64_t> * chain, con
     fatal_message_start ();
     fputs ("failed to check derived clause:\n", stderr);
     for (const auto & lit : unsimplified)
-      fprintf (stderr, "%d ", lit);
+        fprintf (stderr, "%d ", e_val(lit));
     fputc ('0', stderr);
     if (chain) {
       fputs ("\nchain:\n", stderr);
@@ -530,9 +530,9 @@ void Checker::add_derived_clause (int64_t id, const vector<int64_t> * chain, con
         auto c = find_id (cid);
         if (!*c) { fprintf (stderr, "not found\n"); continue; }
         int size = (*c)->size;
-        int * lits = (*c)->literals;
+        ELit * lits = (*c)->literals;
         for (int k = 0; k < size; k++)
-          fprintf (stderr, "%d ", lits[k]);
+            fprintf (stderr, "%d ", e_val(lits[k]));
         fprintf (stderr, "0\n");
       }
     }
@@ -545,7 +545,7 @@ void Checker::add_derived_clause (int64_t id, const vector<int64_t> * chain, con
 
 /*------------------------------------------------------------------------*/
 
-void Checker::delete_clause (int64_t id, const vector<int> & c) {
+void Checker::delete_clause (int64_t id, const vector<ELit> & c) {
   if (inconsistent) return;
   START (checking);
   LOG (c, "CHECKER checking deletion of clause");
@@ -570,7 +570,7 @@ void Checker::delete_clause (int64_t id, const vector<int> & c) {
       fatal_message_start ();
       fputs ("deleted clause not in proof:\n", stderr);
       for (const auto & lit : unsimplified)
-        fprintf (stderr, "%d ", lit);
+          fprintf (stderr, "%d ", e_val(lit));
       fputc ('0', stderr);
       fatal_message_end ();
     }
@@ -587,13 +587,13 @@ void Checker::dump () {
   for (uint64_t i = 0; i < size_clauses; i++)
     for (CheckerClause * c = clauses[i]; c; c = c->next)
       for (unsigned i = 0; i < c->size; i++)
-        if (abs (c->literals[i]) > max_var)
-          max_var = abs (c->literals[i]);
+        if (abs (e_val(c->literals[i])) > max_var)
+            max_var = abs (e_val(c->literals[i]));
   printf ("p cnf %d %" PRIu64 "\n", max_var, num_clauses);
   for (uint64_t i = 0; i < size_clauses; i++)
     for (CheckerClause * c = clauses[i]; c; c = c->next) {
       for (unsigned i = 0; i < c->size; i++)
-        printf ("%d ", c->literals[i]);
+          printf ("%d ", e_val(c->literals[i]));
       printf ("0\n");
     }
 }

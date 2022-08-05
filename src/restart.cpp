@@ -75,7 +75,7 @@ int Internal::reuse_trail () {
   int res = assumptions.size ();
   if (use_scores ()) {
     while (res < level &&
-           score_smaller (this)(decision, abs (control[res+1].decision)))
+           score_smaller (this)(decision, abs (i_val(control[res+1].decision))))
       res++;
   } else {
     int64_t limit = bumped (decision);

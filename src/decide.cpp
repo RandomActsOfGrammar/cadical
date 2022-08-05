@@ -91,7 +91,7 @@ int Internal::decide () {
   START (decide);
   int res = 0;
   if ((size_t) level < assumptions.size ()) {
-    const int lit = assumptions[level];
+    const ILit lit = assumptions[level];
     assert (assumed (lit));
     const signed char tmp = val (lit);
     if (tmp < 0) {

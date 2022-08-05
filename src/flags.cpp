@@ -2,7 +2,7 @@
 
 namespace CaDiCaL {
 
-void Internal::mark_fixed (int lit) {
+void Internal::mark_fixed (ILit lit) {
   Flags & f = flags (lit);
   if (f.status != Flags::ACTIVE) {
     fprintf(stderr, "FLAG STATUS %i\n", f.status);
@@ -19,7 +19,7 @@ void Internal::mark_fixed (int lit) {
   assert (f.fixed ());
 }
 
-void Internal::mark_eliminated (int lit) {
+void Internal::mark_eliminated (ILit lit) {
   Flags & f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::ELIMINATED;
@@ -33,7 +33,7 @@ void Internal::mark_eliminated (int lit) {
   assert (f.eliminated ());
 }
 
-void Internal::mark_pure (int lit) {
+void Internal::mark_pure (ILit lit) {
   Flags & f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::PURE;
@@ -47,7 +47,7 @@ void Internal::mark_pure (int lit) {
   assert (f.pure ());
 }
 
-void Internal::mark_substituted (int lit) {
+void Internal::mark_substituted (ILit lit) {
   Flags & f = flags (lit);
   assert (f.status == Flags::ACTIVE);
   f.status = Flags::SUBSTITUTED;
@@ -61,7 +61,7 @@ void Internal::mark_substituted (int lit) {
   assert (f.substituted ());
 }
 
-void Internal::mark_active (int lit) {
+void Internal::mark_active (ILit lit) {
   Flags & f = flags (lit);
   assert (f.status == Flags::UNUSED);
   f.status = Flags::ACTIVE;
@@ -74,7 +74,7 @@ void Internal::mark_active (int lit) {
   assert (active (lit));
 }
 
-void Internal::reactivate (int lit) {
+void Internal::reactivate (ILit lit) {
   assert (!active (lit));
   Flags & f = flags (lit);
   assert (f.status != Flags::FIXED);

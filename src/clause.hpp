@@ -5,8 +5,8 @@ namespace CaDiCaL {
 
 /*------------------------------------------------------------------------*/
 
-typedef       int *       literal_iterator;
-typedef const int * const_literal_iterator;
+typedef       ILit *       literal_iterator;
+typedef const ILit * const_literal_iterator;
 
 /*------------------------------------------------------------------------*/
 
@@ -84,7 +84,7 @@ struct Clause {
 
   union {
 
-    int literals[2];    // Of variadic 'size' (shrunken if strengthened).
+    ILit literals[2];    // Of variadic 'size' (shrunken if strengthened).
 
     Clause * copy;      // Only valid if 'moved', then that's where to.
     //
@@ -93,6 +93,12 @@ struct Clause {
     // compactly in a contiguous memory arena.  Otherwise, most of
     // the time, 'literals' is valid.  See 'collect.cpp' for details.
   };
+
+  // Using ILit for the literals destroyed the default constructor, so we make our own
+  Clause() : id(0), conditioned(0), covered(0), enqueued(0), frozen(0), garbage(0),
+             gate(0), hyper(0), instantiated(0), keep(0), moved(0), reason(0),
+             redundant(0), transred(0), subsume(0), used(0), vivified(0), vivify(0),
+             glue(0), size(2), pos(0), copy(0) {};
 
   literal_iterator       begin ()       { return literals; }
   literal_iterator         end ()       { return literals + size; }

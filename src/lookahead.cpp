@@ -26,7 +26,7 @@ std::vector<int> Internal::lookahead_populate_locc() {
     if (!c->redundant)
       for (const auto &lit : *c)
         if (active(lit))
-          ++loccs[std::abs(lit)];
+          ++loccs[std::abs(i_val(lit))];
   std::sort(begin(loccs), end(loccs));
   std::vector<int> locc_map;
   locc_map.reserve(max_var);
@@ -48,7 +48,7 @@ int Internal::lookahead_locc(const std::vector<int> &loccs) {
   // available datastructures and iterating over the clause set. This is too
   // slow to be called iteratively. A faster (but inexact) version is
   // lookahead_populate_loc and lookahead_loc.
-int Internal::most_occurring_literal () {
+ILit Internal::most_occurring_literal () {
   init_noccs ();
   for (const auto & c : clauses)
     if (!c->redundant)
@@ -88,7 +88,7 @@ struct probe_negated_noccs_rank {
   Internal * internal;
   probe_negated_noccs_rank (Internal * i) : internal (i) { }
   typedef size_t Type;
-  Type operator () (int a) const { return internal->noccs (-a); }
+  Type operator () (ILit a) const { return internal->noccs (-a); }
 };
 
 // Follow the ideas in 'generate_probes' but flush non root probes and
@@ -100,7 +100,7 @@ void Internal::lookahead_flush_probes () {
 
   init_noccs ();
   for (const auto & c : clauses) {
-    int a, b;
+    ILit a, b;
     if (!is_binary_clause (c, a, b)) continue;
     noccs (a)++;
     noccs (b)++;
@@ -109,7 +109,7 @@ void Internal::lookahead_flush_probes () {
   const auto eop = probes.end ();
   auto j = probes.begin ();
   for (auto i = j; i != eop; i++) {
-    int lit = *i;
+    ILit lit = *i;
     if (!active (lit)) continue;
     const bool have_pos_bin_occs = noccs (lit) > 0;
     const bool have_neg_bin_occs = noccs (-lit) > 0;
@@ -117,7 +117,7 @@ void Internal::lookahead_flush_probes () {
     if (have_pos_bin_occs) lit = -lit;
     assert (!noccs (lit)), assert (noccs (-lit) > 0);
     if (propfixed (lit) >= stats.all.fixed) continue;
-    MSG ("keeping probe %d negated occs %" PRId64 "", lit, noccs (-lit));
+    MSG ("keeping probe %d negated occs %" PRId64 "", i_val(lit), noccs (-lit));
     *j++ = lit;
   }
   size_t remain = j - probes.begin ();
@@ -146,7 +146,7 @@ void Internal::lookahead_generate_probes () {
   //
   init_noccs ();
   for (const auto & c : clauses) {
-    int a, b;
+    ILit a, b;
     if (!is_binary_clause (c, a, b)) continue;
     noccs (a)++;
     noccs (b)++;
@@ -202,7 +202,7 @@ void Internal::lookahead_generate_probes () {
     probes.size (), percent (probes.size (), 2*max_var));
 }
 
-int Internal::lookahead_next_probe () {
+ILit Internal::lookahead_next_probe () {
 
   int generated = 0;
 
@@ -215,7 +215,7 @@ int Internal::lookahead_next_probe () {
 
     while (!probes.empty ()) {
 
-      int probe = probes.back ();
+      ILit probe = probes.back ();
       probes.pop_back ();
 
       // Eliminated or assigned.
@@ -274,7 +274,7 @@ bool Internal::terminating_asked() {
 // The run can be expensive, so we actually first run the cheaper
 // occurrence version and only then run lookahead.
 //
-int Internal::lookahead_probing() {
+ILit Internal::lookahead_probing() {
 
   if (!active ())
     return 0;
@@ -326,8 +326,8 @@ int Internal::lookahead_probing() {
   assert (unsat || propagated == trail.size ());
   propagated = propagated2 = trail.size ();
 
-  int probe;
-  int res = most_occurring_literal();
+  ILit probe;
+  ILit res = most_occurring_literal();
   int max_hbrs = -1;
 
   set_mode (PROBE);
@@ -335,7 +335,7 @@ int Internal::lookahead_probing() {
   MSG("unsat = %d, terminating_asked () = %d ", unsat, terminating_asked ());
   while (!unsat &&
          !terminating_asked () &&
-         (probe = lookahead_next_probe ())) {
+         i_val(probe = lookahead_next_probe ())) {
     stats.probed++;
     int hbrs;
 
@@ -382,7 +382,7 @@ int Internal::lookahead_probing() {
     PHASE ("lookahead-probe-round", stats.probingrounds,
       "found %" PRId64 " hyper binary resolvents", hbrs);
 
-  MSG ("lookahead literal %d with %d\n", res, max_hbrs);
+  MSG ("lookahead literal %d with %d\n", i_val(res), max_hbrs);
 
   return res;
 }
@@ -390,7 +390,7 @@ int Internal::lookahead_probing() {
 CubesWithStatus Internal::generate_cubes(int depth, int min_depth) {
   if (!active() || depth == 0) {
     CubesWithStatus cubes;
-    cubes.cubes.push_back(std::vector<int>());
+    cubes.cubes.push_back(std::vector<ILit>());
     return cubes;
   }
 
@@ -422,17 +422,17 @@ CubesWithStatus Internal::generate_cubes(int depth, int min_depth) {
   MSG ("generate cubes with %zu assumptions\n", assumptions.size());
 
   assert(ntab.empty());
-  std::vector<int> current_assumptions{assumptions};
-  std::vector<std::vector<int>> cubes {{assumptions}};
+  std::vector<ILit> current_assumptions{assumptions};
+  std::vector<std::vector<ILit>> ccubes {{assumptions}};
   auto loccs{lookahead_populate_locc()};
   LOG("loccs populated\n");
   assert(ntab.empty());
 
   for (int i = 0; i < depth; ++i) {
     LOG("Probing at depth %i, currently %zu have been generated",
-        i, cubes.size());
-    std::vector<std::vector<int>> cubes2 {std::move(cubes)};
-    cubes.clear ();
+        i, ccubes.size());
+    std::vector<std::vector<ILit>> cubes2 {std::move(ccubes)};
+    ccubes.clear ();
 
     for (size_t j = 0; j < cubes2.size(); ++j) {
       assert(ntab.empty());
@@ -450,7 +450,7 @@ CubesWithStatus Internal::generate_cubes(int depth, int min_depth) {
         continue;
       }
 
-      int res = terminating_asked()  ? lookahead_locc(loccs) : lookahead_probing();
+      ILit res = terminating_asked()  ? lookahead_locc(loccs) : lookahead_probing();
       if(unsat) {
         LOG("current cube is unsat; skipping");
         unsat = false;
@@ -459,18 +459,18 @@ CubesWithStatus Internal::generate_cubes(int depth, int min_depth) {
 
       if (res == 0) {
         LOG("no lit to split %i", res);
-        cubes.push_back(cubes2[j]);
+        ccubes.push_back(cubes2[j]);
         continue;
       }
 
       assert(res != 0);
       LOG("splitting on lit %i", res);
-      std::vector<int> cube1{cubes2[j]};
+      std::vector<ILit> cube1{cubes2[j]};
       cube1.push_back(res);
-      std::vector<int> cube2{std::move(cubes2[j])};
+      std::vector<ILit> cube2{std::move(cubes2[j])};
       cube2.push_back(-res);
-      cubes.push_back(cube1);
-      cubes.push_back(cube2);
+      ccubes.push_back(cube1);
+      ccubes.push_back(cube2);
     }
 
     if (terminating_asked() && i >= min_depth)
@@ -496,7 +496,7 @@ CubesWithStatus Internal::generate_cubes(int depth, int min_depth) {
 
   CubesWithStatus rcubes;
   rcubes.status = 0;
-  rcubes.cubes = cubes;
+  rcubes.cubes = ccubes;
 
   return rcubes;
 }

@@ -16,10 +16,10 @@ void Internal::clear_phases (vector<signed char> & dst) {
   STOP (copy);
 }
 
-void Internal::phase (int lit) {
+void Internal::phase (ILit lit) {
   const int idx = vidx (lit);
   signed char old_forced_phase = phases.forced[idx];
-  signed char new_forced_phase = sign (lit);
+  signed char new_forced_phase = sign (i_val(lit));
   if (old_forced_phase == new_forced_phase) return;
   if (old_forced_phase)
     LOG ("overwriting old forced phase %d", old_forced_phase * idx);
@@ -27,7 +27,7 @@ void Internal::phase (int lit) {
   phases.forced[idx] = new_forced_phase;
 }
 
-void Internal::unphase (int lit) {
+void Internal::unphase (ILit lit) {
   const int idx = vidx (lit);
   signed char old_forced_phase = phases.forced[idx];
   if (!old_forced_phase) return;
