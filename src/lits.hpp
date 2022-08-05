@@ -10,10 +10,6 @@ namespace CaDiCaL {
         ILit(int i = 0){
             ilit = i;
         }
-        //ILit() : ilit(0) {}
-        /*ILit(const ILit &i){
-            ilit = i.ilit;
-        }*/
 
         friend bool operator== (const ILit & lhs, const ILit & rhs);
         friend bool operator!= (const ILit & lhs, const ILit & rhs);
@@ -32,10 +28,6 @@ namespace CaDiCaL {
         ELit(int e = 0){
             elit = e;
         }
-        //ELit() : elit(0) {}
-        /*ELit(const ELit &e){
-            elit = e.elit;
-        }*/
 
         friend bool operator== (const ELit & lhs, const ELit & rhs );
         friend bool operator!= (const ELit & lhs, const ELit & rhs );
