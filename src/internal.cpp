@@ -1,6 +1,7 @@
 #include "internal.hpp"
 
 // HACK! 
+#define MWW_DEBUG_HACK
 #ifdef MWW_DEBUG_HACK
   #include <string>
   #include <sstream>
@@ -12,6 +13,7 @@
 #endif
 
 namespace CaDiCaL {
+
 
 /*------------------------------------------------------------------------*/
 
@@ -281,7 +283,7 @@ Internal::IMPORT_TYPE Internal::create_internal_clause(std::vector<int> cls,
 
         if (external->marked (external->witness, elit)) {
             // Literal marked as witness: Cannot import
-            return Internal::IMPORT_TYPE::NO_IMPORT;
+          return Internal::IMPORT_TYPE::NO_IMPORT;
         }
 
         //The only side effects of this are to increase the mapping between internal and external.
