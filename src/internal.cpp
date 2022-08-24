@@ -404,6 +404,7 @@ void Internal::import_redundant_clauses (int& res) {
       else{
           external->check_learned_clause ();
           Clause *new_built_clause = new_clause(clause_id, true, glue);
+          if (!is_direct_import) { PROOF_TODO(proof, "-7", -7); }
           if (proof) proof->add_derived_clause(new_built_clause, is_direct_import);
           assert (watching());
           watch_clause (new_built_clause);

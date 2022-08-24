@@ -414,6 +414,7 @@ Clause * Internal::new_learned_redundant_clause (int glue) {
 #endif
   external->check_learned_clause ();
   Clause * res = new_clause (0, true, glue);
+  PROOF_TODO(proof, "-2", -2);
   if (proof) proof->add_derived_clause (res, false);
   assert (watching ());
   watch_clause (res);
@@ -425,6 +426,7 @@ Clause * Internal::new_learned_redundant_clause (int glue) {
 Clause * Internal::new_hyper_binary_resolved_clause (bool red, int glue) {
   external->check_learned_clause ();
   Clause * res = new_clause (0, red, glue);
+  PROOF_TODO(proof, "-3", -3);
   if (proof) proof->add_derived_clause (res, false);
   assert (watching ());
   watch_clause (res);
@@ -437,6 +439,7 @@ Clause * Internal::new_hyper_ternary_resolved_clause (bool red) {
   external->check_learned_clause ();
   size_t size = clause.size ();
   Clause * res = new_clause (0, red, size);
+  PROOF_TODO(proof, "-4", -4);
   if (proof) proof->add_derived_clause (res, false);
   assert (!watching ());
   return res;
@@ -450,6 +453,7 @@ Clause * Internal::new_clause_as (const Clause * orig) {
   const int new_glue = orig->glue;
   Clause * res = new_clause (0, orig->redundant, new_glue);
   assert (!orig->redundant || !orig->keep || res->keep);
+  PROOF_TODO(proof, "-5", -5);
   if (proof) proof->add_derived_clause (res, false);
   assert (watching ());
   watch_clause (res);
@@ -462,6 +466,7 @@ Clause * Internal::new_clause_as (const Clause * orig) {
 Clause * Internal::new_resolved_irredundant_clause () {
   external->check_learned_clause ();
   Clause * res = new_clause (0, false);
+  PROOF_TODO(proof, "-6", -6);
   if (proof) proof->add_derived_clause (res, false);
   assert (!watching ());
   return res;

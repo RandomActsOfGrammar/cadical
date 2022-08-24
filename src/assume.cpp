@@ -153,6 +153,7 @@ void Internal::failing () {
   external->check_learned_clause ();
   clause_id_t id = next_clause_id();
   if (proof) {
+      PROOF_TODO(proof, "-1", -1);
     proof->add_derived_clause (id, clause, false, -1);
     proof->delete_clause (id, clause);
   }

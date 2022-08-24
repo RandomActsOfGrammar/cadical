@@ -80,8 +80,6 @@ void Tracer::add_derived_clause (clause_id_t id, const vector<int64_t> * chain, 
   if (is_imported) { return; } //don't put imported clauses in proof file
   if (file->closed ()) return;
 
-  vector<int64_t> todovec;
-
   if (!chain) {
      LOG("TRACER: add_derived_clause: no chain; skipping");
      return;
@@ -186,8 +184,12 @@ void Tracer::finalize_clause (clause_id_t id, const vector<int> & clause) {
 }
 
 void Tracer::add_todo (const vector<int64_t> & vals) {
-  if (!frat) return; //only FRAT files contain todo lines
+  if (!frat && !lrat) return; //only FRAT files contain todo lines
   if (file->closed ()) return;
+  //LRAT doesn't have todo lines, but it does have comments, so we can put todos there
+  if (lrat && !frat && !binary){
+      file->put("c ");
+  }
   ostringstream ss;
   for (auto c : vals) ss << " " << c;
   LOG ("TRACER tracing TODO%s", ss.str ().c_str ());
