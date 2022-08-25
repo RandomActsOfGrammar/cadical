@@ -20,7 +20,7 @@ void Internal::new_proof_on_demand () {
 void Internal::trace (File * file) {
   assert (!tracer);
   new_proof_on_demand ();
-  tracer = new Tracer (this, file, opts.binary, opts.lrat, opts.frat, opts.proofdelete);
+  tracer = new Tracer (this, file, opts.binary, opts.lrat && !opts.frat, opts.frat, opts.proofdelete);
   LOG ("PROOF connecting proof tracer");
   proof->connect_tracer(tracer);
 }
