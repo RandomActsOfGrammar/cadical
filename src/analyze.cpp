@@ -19,7 +19,7 @@ void Internal::learn_empty_clause () {
   LOG ("learned empty clause [%ld]", id);
   external->check_learned_empty_clause ();
   if (proof) {
-    proof->add_derived_empty_clause (id);
+      PROOF_TODO(proof, "-30", -30); proof->add_derived_empty_clause (id);
     proof->finalize_clause (id, clause);
   }
   unsat = true;
@@ -33,7 +33,7 @@ void Internal::learn_unit_clause (clause_id_t id, int lit, bool is_imported) {
     int eidx = i2e[abs (lit)];
     LOG ("learned unit clause [%ld] %d (external %d)", id, lit, eidx);
     external->set_unit_id (eidx, id);
-    proof->add_derived_unit_clause (id, lit, is_imported);
+    PROOF_TODO(proof, "-20", -20); proof->add_derived_unit_clause (id, lit, is_imported);
   } else {
     LOG ("learned unit clause [%ld] %d", id, lit);
   }

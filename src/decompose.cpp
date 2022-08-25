@@ -285,8 +285,7 @@ bool Internal::decompose_round () {
         //   if (id) chain.push_back (id);
         // }
         // chain.push_back (c->id);
-        PROOF_TODO (proof, "decompose shrink", 46); // TODO(Mario)
-        proof->add_derived_clause (id, clause, false, -1);
+        PROOF_TODO (proof, "decompose shrink", 46); proof->add_derived_clause (id, clause, false, -1);  // TODO(Mario)
         proof->delete_clause (c);
       }
       size_t l;

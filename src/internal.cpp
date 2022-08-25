@@ -393,19 +393,18 @@ void Internal::import_redundant_clauses (int& res) {
       size_t size = clause.size();
       if (size == 0){
           unsat = true;
-          if (proof) proof->add_derived_empty_clause(clause_id);
+          PROOF_TODO(proof, "-31", -31); if (proof) proof->add_derived_empty_clause(clause_id);
       }
       else if (size == 1){
           // why do we do both of these?  Ah, one is for the proof, and one is for 
           // use in solving.
-          if (proof) proof->add_derived_unit_clause(clause_id, clause[0], is_direct_import);          
+          PROOF_TODO(proof, "-21", -21); if (proof) proof->add_derived_unit_clause(clause_id, clause[0], is_direct_import);          
           assign_original_unit(clause_id, clause[0]);
       }
       else{
           external->check_learned_clause ();
           Clause *new_built_clause = new_clause(clause_id, true, glue);
-          if (!is_direct_import) { PROOF_TODO(proof, "-7", -7); }
-          if (proof) proof->add_derived_clause(new_built_clause, is_direct_import);
+          if (proof){ PROOF_TODO(proof, "-7", -7); proof->add_derived_clause(new_built_clause, is_direct_import); }
           assert (watching());
           watch_clause (new_built_clause);
       }

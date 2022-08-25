@@ -171,8 +171,7 @@ void Proof::flush_clause (Clause * c) {
   internal->chain.push_back(c->id);
   clause_id_t id = internal->next_clause_id();
   std::vector<int64_t> todovec{-8};
-  add_todo(todovec); //PROOF_TODO(proof, "-8", -8);
-  add_derived_clause (id, false, c->glue);
+  add_todo(todovec); add_derived_clause (id, false, c->glue); //PROOF_TODO(proof, "-8", -8);
   delete_clause (c);
   c->id = id;
 }
@@ -193,8 +192,7 @@ void Proof::strengthen_clause (Clause * c, int remove) {
   }
   clause_id_t id = internal->next_clause_id();
   std::vector<int64_t> todovec{-9};
-  add_todo(todovec); //PROOF_TODO(proof, "-9", -9);
-  add_derived_clause (id, false, c->glue);
+  add_todo(todovec); add_derived_clause (id, false, c->glue); //PROOF_TODO(proof, "-9", -9);
   delete_clause (c);
   c->id = id;
 }
