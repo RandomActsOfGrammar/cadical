@@ -44,7 +44,7 @@ coresolver="$CADICALBUILD/cadical"
 simpsolver="$CADICALBUILD/../scripts/run-simplifier-and-extend-solution.sh"
 proofchecker=$CADICALBUILD/drat-trim
 solutionchecker=$CADICALBUILD/precochk
-fratchecker=../../frat/frat-rs
+fratchecker=../../cake_lpr/cake_lpr
 makefile=$CADICALBUILD/makefile
 
 if [ ! -f $proofchecker -o ! -f $solutionchecker ]

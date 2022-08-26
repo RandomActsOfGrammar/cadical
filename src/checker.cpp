@@ -40,7 +40,7 @@ inline CheckerWatcher & Checker::watcher (int lit) {
 
 CheckerClause * Checker::new_unit_clause (int lit) {
   const size_t bytes = sizeof (CheckerClause);
-  CheckerClause * res = new CheckerClause;
+  CheckerClause * res = (CheckerClause *)new char[sizeof(CheckerClause)];
   res->next = 0;
   res->hash = last_hash;
   res->size = 1;
