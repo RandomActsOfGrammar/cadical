@@ -66,7 +66,7 @@ inline void Internal::vivify_assign (int lit, Clause * reason) {
       }
       chain.push_back (reason->id);
     }
-    learn_unit_clause (lit);
+    PROOF_TODO(proof, "-29", -29); learn_unit_clause (lit);
   }
   const signed char tmp = sign (lit);
   vals[idx] = tmp;

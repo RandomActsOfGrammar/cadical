@@ -180,8 +180,7 @@ inline void Internal::probe_assign (int lit, int parent) {
   v.trail = (int) trail.size ();
   set_parent_reason_literal (lit, parent);
   if (!level) {
-    PROOF_TODO (proof, "probe assign", 71); // TODO(Mario)
-    learn_unit_clause (lit);
+    PROOF_TODO (proof, "probe assign", 71); learn_unit_clause (lit); // TODO(Mario)
   }
   else assert (level == 1);
   const signed char tmp = sign (lit);

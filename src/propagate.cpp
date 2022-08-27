@@ -80,7 +80,7 @@ inline void Internal::search_assign (int lit, Clause * reason) {
   v.level = lit_level;
   v.trail = (int) trail.size ();
   v.reason = reason;
-  if (!lit_level) learn_unit_clause (lit);  // increases 'stats.fixed'
+  if (!lit_level){ PROOF_TODO(proof, "-28", -28); learn_unit_clause (lit);}  // increases 'stats.fixed'
   const signed char tmp = sign (lit);
   vals[idx] = tmp;
   vals[-idx] = -tmp;
