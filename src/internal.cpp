@@ -396,10 +396,13 @@ void Internal::import_redundant_clauses (int& res) {
           if (proof) proof->add_derived_empty_clause(clause_id);
       }
       else if (size == 1){
-          // why do we do both of these?  Ah, one is for the proof, and one is for 
-          // use in solving.
-          if (proof) proof->add_derived_unit_clause(clause_id, clause[0], is_direct_import);          
-          assign_original_unit(clause_id, clause[0]);
+          // why do we do both of these?  Ah, one is for the proof, and one is for use in solving.
+          if (proof) proof->add_derived_unit_clause(clause_id, clause[0], is_direct_import); 
+          // MWW 9/13/2022: need to add the clause to the chain, in case we derive the empty clause
+          // in assign_original_unit.  This is only necessary if we haven't already added it, 
+          // e.g. the clause is a direct import.
+          if (is_direct_import) { chain.push_back(clause_id); } 
+          assign_original_unit(clause_id, clause[0]);      
       }
       else{
           external->check_learned_clause ();
