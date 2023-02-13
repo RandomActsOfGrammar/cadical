@@ -215,12 +215,6 @@ struct Internal {
   Internal * internal;          // proxy to 'this' in macros
   External * external;          // proxy to 'external' buddy in 'Solver'
 
-  // Dominik Schreiber 2022-10-05:
-  // The most recent clause ID of a "direct import" unit clause.
-  // Used in a hotfix to ensure a non-empty chain.
-  // TODO Replace with something more robust.
-  int64_t last_direct_import_unit_id;
-
   // Dominik Schreiber 2022-12-14:
   // Required by stack implementation of "justify_lit" (analyze.cpp).
   struct stack_element {

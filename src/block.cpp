@@ -678,6 +678,7 @@ bool Internal::block () {
     if (!propagate ()) {
       LOG ("propagating units results in empty clause");
       build_chain ();
+      fprintf(stderr, "!!!!Empty clause learned at Internal::block (block.cpp L681)");
       learn_empty_clause ();
       assert (unsat);
     }

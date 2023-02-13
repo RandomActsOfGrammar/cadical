@@ -361,7 +361,9 @@ void Internal::failed_literal (int failed) {
   assert (!val (uip));
   probe_assign_unit (-uip);
 
-  if (!probe_propagate ()) learn_empty_clause ();
+  if (!probe_propagate ()) {
+        learn_empty_clause ();
+  }
 
   while (!unsat && !work.empty ()) {
     const int parent = work.back ();
@@ -374,7 +376,9 @@ void Internal::failed_literal (int failed) {
     } else {
       LOG ("found unassigned failed parent %d", parent);
       probe_assign_unit (-parent);
-      if (!probe_propagate ()) learn_empty_clause ();
+      if (!probe_propagate ()) {
+        learn_empty_clause ();
+      }
     }
   }
   erase_vector (work);
@@ -637,7 +641,9 @@ void CaDiCaL::Internal::probe (bool update_limits) {
 
   if (unsat) return;
   if (level) backtrack ();
-  if (!propagate ()) { learn_empty_clause (); return; }
+  if (!propagate ()) { 
+    learn_empty_clause (); return; 
+  }
 
   stats.probingphases++;
 

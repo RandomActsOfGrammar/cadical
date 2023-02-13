@@ -1,16 +1,5 @@
 #include "internal.hpp"
 
-// HACK! 
-#ifdef MWW_DEBUG_HACK
-  #include <string>
-  #include <sstream>
-  #include <fstream>
-  #include <iostream>
-  #define MWW_COND_EXECUTE(cmd) cmd
-#else
-  #define MWW_COND_EXECUTE(cmd)
-#endif
-
 namespace CaDiCaL {
 
 /*------------------------------------------------------------------------*/
@@ -331,16 +320,6 @@ void Internal::import_redundant_clauses (int& res) {
     // Fetch pointer to 1st literal and size of the clause (plus glue)
     auto cls = external->learnSource->getNextClause ();
 
-		//
-		// MWW: Terrible, horrible hack for debugging.
-		//
-    MWW_COND_EXECUTE({
-      std::string clauseString;
-      for (size_t i = 0; i < cls.size(); ++i)
-        clauseString += std::to_string(cls[i]) + " ";
-      std::cout << "Receiving clause: " << clauseString << std::endl;
-      cout.flush();
-    })
 
     assert (clause.empty ());
 
@@ -377,16 +356,18 @@ void Internal::import_redundant_clauses (int& res) {
       // clauses and also the clause id of the remote clause.
 
       bool is_direct_import; 
+      
+      chain.push_back(clause_id); // Add imported clause to proof of the simplified clause.
       if (importType == Internal::IMPORT_TYPE::DIRECT_IMPORT) {
         // use glue and clause_id from the create_clause_id function.
         is_direct_import = true;
       } else if (importType == Internal::IMPORT_TYPE::SIMPLIFIED_IMPORT) { // Simplified
         // Since this is a 'new' clause, we don't have a glue computed, so use the size
         glue = clause.size();
-        chain.push_back(clause_id); // Add imported clause to proof of the simplified clause.
         clause_id = next_clause_id();
         is_direct_import = false;
       } else {
+        is_direct_import = false;
         assert(false && "Missing case in import_redundant_clauses function");
       }
 
@@ -404,7 +385,6 @@ void Internal::import_redundant_clauses (int& res) {
           // Dominik Schreiber 2022-10-05: Store ID in a separate temporary variable
           // such that it won't be overwritten by intermediate propagation.
           // TODO Replace with something more robust.
-          last_direct_import_unit_id = clause_id;
           assign_original_unit(clause_id, clause[0]);
       }
       else{

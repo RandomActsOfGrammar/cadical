@@ -1,3 +1,6 @@
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include "internal.hpp"
 #include <sstream>
 
@@ -75,22 +78,42 @@ void Tracer::add_original_clause (clause_id_t id, const vector<int> & clause) {
   else file->put ("0\n");
 }
 
+
+#include <execinfo.h>
+
+/* Obtain a backtrace and print it to stdout. */
+void
+print_trace (const char *caller)
+{
+  void *array[50];
+  char **strings;
+  int size, i;
+
+  size = backtrace (array, 50);
+  strings = backtrace_symbols (array, size);
+  if (strings != NULL)
+  {
+
+    fprintf (stderr, "%s: Obtained %d stack frames.\n", caller, size);
+    for (i = 0; i < size; i++)
+      fprintf (stderr, "%s %s\n", caller, strings[i]);
+  }
+
+  free (strings);
+}
+
 void Tracer::add_derived_clause (clause_id_t id, const vector<int64_t> * chain, const vector<int> & clause, bool is_imported) {
   LOG("At Tracer::add_derived_clause");
   if (is_imported) { return; } //don't put imported clauses in proof file
   if (file->closed ()) return;
 
-  vector<int64_t> chain_vec;
   if (!chain) {
-    // Dominik Schreiber 2022-10-05: For the corner case where
-    // the empty clause arises from an imported unit clause 
-    // and therefore has no chain, set its chain to the imported
-    // unit clause.
-    // TODO Replace with something more robust.
-    assert(clause.empty ());
-    chain_vec.push_back (internal->last_direct_import_unit_id);
-    chain = &chain_vec;
-  }
+    fprintf(stderr, "!!!!Empty chain case for clause id %" PRId64 " with length: %lu \n", id, clause.size());
+    if (!clause.empty ()) {
+      fprintf(stderr, "!!!!Clause non-empty! %d \n", clause[0]);
+    }
+    print_trace("Empty chain");
+  } 
 
   assert(chain);
 

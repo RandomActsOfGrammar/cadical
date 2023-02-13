@@ -506,7 +506,9 @@ void Internal::vivify_strengthen (Clause * c) {
     clause.clear ();
 
     bool ok = propagate ();
-    if (!ok) learn_empty_clause ();
+    if (!ok) {
+      learn_empty_clause ();
+    }
 
   } else {
 

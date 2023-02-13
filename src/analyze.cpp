@@ -395,6 +395,8 @@ bool justify_lit (Internal& s, int lit) {
   return true;
 }
 
+void print_trace (const char *caller);
+
 void Internal::build_chain () {
   //old_reasons moved here from global above
   vector<Clause*> old_reasons;
@@ -426,6 +428,10 @@ void Internal::build_chain () {
   }
   old_reasons.clear ();
 
+  if (chain.empty()) {
+    fprintf(stderr, "!!!!Built empty chain.\n");
+    print_trace("build_chain");
+  }
 #ifdef LOGGING
   ostringstream ss;
   for (auto c : chain) ss << " " << c;
@@ -843,7 +849,9 @@ void Internal::analyze () {
   backtrack (new_level);
 
   if (uip) search_assign_driving (-uip, driving_clause);
-  else learn_empty_clause ();
+  else {
+    learn_empty_clause ();
+  }
 
   if (stable) reluctant.tick (); // Reluctant has its own 'conflict' counter.
 
