@@ -254,7 +254,6 @@ bool Internal::decompose_round () {
     } else if (!clause.size ()) {
       LOG ("learned empty clause during decompose");
       PROOF_TODO (proof, "decompose empty", 43); // TODO(Mario)
-      fprintf(stderr, "!!!!Empty clause learned at Internal::decompose_round (decompose.cpp 258)");
       learn_empty_clause ();
     } else if (clause.size () == 1) {
       LOG (c, "unit %d after substitution", clause[0]);
@@ -331,7 +330,6 @@ bool Internal::decompose_round () {
   if (!unsat && propagated < trail.size () && !propagate ()) {
     LOG ("empty clause after propagating units from substitution");
     build_chain ();
-    fprintf(stderr, "!!!!Empty clause learned at Internal::decompose_round (decompose.cpp 336)");
     learn_empty_clause ();
   }
 

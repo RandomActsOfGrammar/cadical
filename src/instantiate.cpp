@@ -205,7 +205,6 @@ void Internal::instantiate (Instantiator & instantiator) {
   if (propagated < trail.size ()) {
     if (!propagate ()) {
       LOG ("propagation after connecting watches failed");
-      fprintf(stderr, "!!!!Empty clause learned at Internal::instantiate (Instantiate.cpp L208)");
       learn_empty_clause ();
       assert (unsat);
     }
